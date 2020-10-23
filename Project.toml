@@ -3,6 +3,12 @@ uuid = "886cb795-8fd3-4b11-92f6-8071e46f71c5"
 authors = ["Fredrik Bagge Carlson"]
 version = "0.1.0"
 
+[deps]
+ControlSystems = "a6e380b2-a6ca-5380-bf3e-84a91bcd477e"
+Latexify = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
+
 [compat]
 julia = "1.5"
 
