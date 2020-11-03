@@ -149,25 +149,25 @@ function ccode(G::TransferFunction)
     code = """
 #include <stdio.h>\n
 double transfer_function(double ui$(var_str)) {
-static double u[$(nu)] = {0};
-static double y[$(ny)] = {0};
-int i;
-for (i=$(nu-1); i > 0; --i) {
-    u[i] = u[i-1];
-}
-u[0] = ui;
-for (i=$(ny-1); i > 0; --i) {
-    y[i] = y[i-1];
-}
-y[0] = 0;
+    static double u[$(nu)] = {0};
+    static double y[$(ny)] = {0};
+    int i;
+    for (i=$(nu-1); i > 0; --i) {
+        u[i] = u[i-1];
+    }
+    u[0] = ui;
+    for (i=$(ny-1); i > 0; --i) {
+        y[i] = y[i-1];
+    }
+    y[0] = 0;
 """
     for (i,n) in enumerate(n)
-        code *= "y[0] += $(sp.ccode(n))*u[$(i-1)];\n"
+        code *= "    y[0] += $(sp.ccode(n))*u[$(i-1)];\n"
     end
     for (i,n) in enumerate(d[2:end])
-        code *= "y[0] += $(sp.ccode(simplify(-n)))*y[$(i)];\n"
+        code *= "    y[0] += $(sp.ccode(simplify(-n)))*y[$(i)];\n"
     end
-    code *= "return y[0];\n}"
+    code *= "    return y[0];\n}"
     print(code)
     clipboard(code)
     code
