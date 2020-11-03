@@ -32,7 +32,7 @@ using SymbolicControlSystems: s, z
         Gt = tustin(G, 0.1)
         @test_throws ErrorException sym2num(Gt, J=>1, c=>1)
         Gtn = sym2num(Gt, 0.1, J=>1, c=>1)
-        @test Gtn ≈ c2d(Gn, 0.1, :tustin)
+        @test minreal(Gtn) ≈ c2d(Gn, 0.1, :tustin)
         code = SymbolicControlSystems.ccode(Gt)
         @test occursin("static double u[3] = {0};", code)
         @test occursin("static double y[3] = {0};", code)
