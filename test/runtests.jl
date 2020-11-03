@@ -1,7 +1,7 @@
 using SymbolicControlSystems
 using Test
 using ControlSystems
-using SymbolicControlSystems: s
+using SymbolicControlSystems: s, z
 
 
 @testset "SymbolicControlSystems.jl" begin
@@ -22,6 +22,13 @@ using SymbolicControlSystems: s
         @test SymbolicControlSystems.expand_coeffs(n) == [ω0^3]
         @test sum(SymbolicControlSystems.expand_coeffs(d) - [1, 0.5, ω0^2+0.25^2]) == 0
 
+        @vars J c
+        G = tf(1.,[J^2,c,1])
+        Gn = tf(1.,[1,1,1])
+        Gt = tustin(G, 0.1)
+        @test_throws ErrorException sym2num(Gt, J=>1, c=>1)
+        Gtn = sym2num(Gt, 0.1, J=>1, c=>1)
+        @test Gtn ≈ c2d(Gn, 0.1, :tustin)
 
 
     end
