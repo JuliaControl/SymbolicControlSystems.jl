@@ -21,22 +21,23 @@ using SymbolicControlSystems: s, z
         n, d = sp.fraction(simplify(ssys))
         @test SymbolicControlSystems.expand_coeffs(n) == [ω0^3]
         @test sum(SymbolicControlSystems.expand_coeffs(d) - [1, 0.5, ω0^2+0.25^2]) == 0
+    end
 
-        @testset "Tustin and C-code" begin
-            @info "Testing Tustin and C-code"
-            
-            @vars J c
-            G = tf(1.,[J^2,c,1])
-            Gn = tf(1.,[1,1,1])
-            Gt = tustin(G, 0.1)
-            @test_throws ErrorException sym2num(Gt, J=>1, c=>1)
-            Gtn = sym2num(Gt, 0.1, J=>1, c=>1)
-            @test Gtn ≈ c2d(Gn, 0.1, :tustin)
-            code = SymbolicControlSystems.ccode(Gt)
-            @test occursin("static double u[3] = {0};", code)
-            @test occursin("static double y[3] = {0};", code)
-            @test occursin("double ui, double J, double c", code)
-            @test occursin("""#include <stdio.h>
+    @testset "Tustin and C-code" begin
+        @info "Testing Tustin and C-code"
+        
+        @vars J c
+        G = tf(1.,[J^2,c,1])
+        Gn = tf(1.,[1,1,1])
+        Gt = tustin(G, 0.1)
+        @test_throws ErrorException sym2num(Gt, J=>1, c=>1)
+        Gtn = sym2num(Gt, 0.1, J=>1, c=>1)
+        @test Gtn ≈ c2d(Gn, 0.1, :tustin)
+        code = SymbolicControlSystems.ccode(Gt)
+        @test occursin("static double u[3] = {0};", code)
+        @test occursin("static double y[3] = {0};", code)
+        @test occursin("double ui, double J, double c", code)
+        @test occursin("""#include <stdio.h>
 
 double transfer_function(double ui, double J, double c) {
     static double u[3] = {0};
@@ -57,7 +58,24 @@ double transfer_function(double ui, double J, double c) {
     y[0] += ((-400.0*pow(J, 2) + 20.0*c - 1.0)/(400.0*pow(J, 2) + 20.0*c + 1.0))*y[2];
     return y[0];
 }""", code)
-        end
+
+
+        code = SymbolicControlSystems.ccode(ss(Gt))
+        @test occursin("double u, double J, double c", code)
+        @test occursin("""#include <stdio.h>
+
+double transfer_function(double u, double J, double c) {
+    static double x[2] = {0};
+    static double x1[2] = {0};
+    int i;
+    x1[0] = (x[1]);
+    x1[1] = ((u*(400.0*pow(J, 2) + 20.0*c + 1.0) - x[0]*(400.0*pow(J, 2) - 20.0*c + 1.0) + x[1]*(800.0*pow(J, 2) - 2.0))/(400.0*pow(J, 2) + 20.0*c + 1.0));
+    for (i=0; i < 1; ++i) {
+        x[i] = x1[i];
+    }
+    return ((40.0*c*x[0] + 1.0*u*(400.0*pow(J, 2) + 20.0*c + 1.0) + x[1]*(1600.0*pow(J, 2) + 40.0*c))/pow(400.0*pow(J, 2) + 20.0*c + 1.0, 2)); // C*x + D*u
+}""", code)
+
             
 
     end

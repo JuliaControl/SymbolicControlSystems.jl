@@ -174,5 +174,43 @@ double transfer_function(double ui$(var_str)) {
 end
 
 
+function ccode(sys::StateSpace{<:Discrete})
+    nx = sys.nx
+    u = Sym("u")
+    x = [Sym("x[$(i-1)]") for i in 1:nx]
+    P = Sym(sys)
+    vars = P.free_symbols
+    vars.remove(z)
+    vars = collect(vars)
+    var_str = ""
+    for var in vars
+        var_str *= ", double $(var)"
+    end
+    x1 = simplify.(sys.A*x + sys.B*u)
+    y = (sys.C*x + sys.D*u)[]
+    y = simplify(y)
+    
+    code = """
+#include <stdio.h>\n
+double transfer_function(double u$(var_str)) {
+    static double x[$(nx)] = {0};
+    static double x1[$(nx)] = {0};
+    int i;
+"""
+    for (i,n) in enumerate(x1)
+        code *= "    x1[$(i-1)] = ($(sp.ccode(n)));\n"
+    end
+    code *= """
+        for (i=0; i < $(nx-1); ++i) {
+            x[i] = x1[i];
+        }
+    """
+
+    code *= "    return ($(sp.ccode(y))); // C*x + D*u\n}"
+    print(code)
+    clipboard(code)
+    code
+end
+
 end
 
