@@ -132,10 +132,10 @@ function ccode(G::TransferFunction)
     P.has(z) || error("Did not find `z` in symbolic expression")
     P.has(s) && error("Found `s` in symbolic expression, provide expression in `z`")
     n,d = numvec(G)[], denvec(G)[]
-    # @assert d[1] == 1 "Provide monic denominator polynomial"
     if d[1] != 1
-        d = simplify.(d ./ d[1])
         n = simplify.(n ./ d[1])
+        d = simplify.(d ./ d[1])
+        @info "Denominator polynomial not monic, dividing by the leading coefficient. New polynomial: ", d
     end
     vars = P.free_symbols
     vars.remove(z)
@@ -162,10 +162,10 @@ double transfer_function(double ui$(var_str)) {
     y[0] = 0;
 """
     for (i,n) in enumerate(n)
-        code *= "    y[0] += $(sp.ccode(n))*u[$(i-1)];\n"
+        code *= "    y[0] += ($(sp.ccode(n)))*u[$(i-1)];\n"
     end
     for (i,n) in enumerate(d[2:end])
-        code *= "    y[0] += $(sp.ccode(simplify(-n)))*y[$(i)];\n"
+        code *= "    y[0] += ($(sp.ccode(simplify(-n))))*y[$(i)];\n"
     end
     code *= "    return y[0];\n}"
     print(code)
