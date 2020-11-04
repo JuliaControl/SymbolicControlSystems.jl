@@ -12,15 +12,17 @@ The function `code = SymbolicControlSystems.ccode(G::LTISystem)` returns a strin
 using ControlSystems, SymbolicControlSystems
 
 @vars w T d # Define symbolic variables
-h = 0.01
-G = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
-Gd = tustin(G, h) # Discretize 
-code = SymbolicControlSystems.ccode(Gd, cse=true)
-path = mktempdir()
+h        = 0.01
+G        = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
+Gd       = tustin(G, h) # Discretize
+code     = SymbolicControlSystems.ccode(Gd, cse=true)
+path     = mktempdir()
 filename = joinpath(path, "code.c")
-outname = joinpath(path, "test.so")
+outname  = joinpath(path, "test.so")
 write(joinpath(path, filename), code)
 run(`gcc $filename -lm -shared -o $outname`)
+
+## Test that the C-code generates the same output as lsim in Julia
 
 function c_lsim(u, T, d, w)
     Libc.Libdl.dlopen(outname) do lib
@@ -31,10 +33,10 @@ function c_lsim(u, T, d, w)
     end
 end
 
-u = randn(100); # Random input signal 
+u    = randn(100); # Random input signal 
 T_, d_, w_ = 0.03, 0.2, 2.0 # Define system parameters
-y = c_lsim( u,  T_,  d_,  w_); # Filter u through the C-function filter
-Gd_ = sym2num(Gd, h, Pair.((T, d, w), (T_, d_, w_))...) # Replace symbols with numeric constants
+y    = c_lsim( u,  T_,  d_,  w_); # Filter u through the C-function filter
+Gd_  = sym2num(Gd, h, Pair.((T, d, w), (T_, d_, w_))...) # Replace symbols with numeric constants
 y_,_ = lsim(Gd_, u); # Filter using Julia
 @test norm(y-y_)/norm(y_) < 1e-10
 plot([u y y_], lab=["u" "y c-code" "y julia"]) |> display
