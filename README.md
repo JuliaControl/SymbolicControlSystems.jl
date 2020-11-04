@@ -4,7 +4,9 @@
 [![Coverage](https://codecov.io/gh/baggepinnen/SymbolicControlSystems.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/SymbolicControlSystems.jl)
 
 
-Utilities for working with [ControlSystems.jl](https://github.com/JuliaControl/ControlSystems.jl/) types with SymPy.jl symbols as coefficients.
+Utilities for
+- Working with [ControlSystems.jl](https://github.com/JuliaControl/ControlSystems.jl/) types with SymPy.jl symbols as coefficients.
+- Generation of C-code for filtering with LTI systems.
 
 ## Usage examples
 ```julia
