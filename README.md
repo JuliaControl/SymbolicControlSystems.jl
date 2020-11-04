@@ -4,6 +4,62 @@
 [![Coverage](https://codecov.io/gh/baggepinnen/SymbolicControlSystems.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/SymbolicControlSystems.jl)
 
 
+Utilities for working with [ControlSystems.jl](https://github.com/JuliaControl/ControlSystems.jl/) types with SymPy.jl symbols as coefficients.
+
+## Usage examples
+```julia
+julia> using ControlSystems, SymbolicControlSystems
+
+julia> @vars w T d # Define symbolic variables
+(w, T, d)
+
+julia> h = 0.01;
+
+julia> G = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
+TransferFunction{Continuous, SisoRational{Sym}}
+                      w^2
+-----------------------------------------------
+T*s^3 + 2*T*d*w + 1*s^2 + T*w^2 + 2*d*w*s + w^2
+
+Continuous-time transfer function model
+
+julia> Gd = tustin(G, h); # Discretize
+
+julia> Sym(G) # Convert a TransferFunction to symbolic expression
+                        2                      
+                       w                       
+───────────────────────────────────────────────
+   3    2                   ⎛   2        ⎞    2
+T⋅s  + s ⋅(2⋅T⋅d⋅w + 1) + s⋅⎝T⋅w  + 2⋅d⋅w⎠ + w 
+
+julia> ex = w^2 / (s^2 + 2*d*w*s + w^2) # Define symbolic expression
+         2       
+        w        
+─────────────────
+           2    2
+2⋅d⋅s⋅w + s  + w 
+
+julia> tf(ex) # Convert symbolic expression to TransferFunction
+TransferFunction{Continuous, SisoRational{Sym}}
+         w^2
+---------------------
+1*s^2 + 2*d*w*s + w^2
+
+Continuous-time transfer function model
+
+julia> # Replace symbols with numbers
+       T_, d_, w_ = 0.03, 0.2, 2.0 # Define system parameters
+(0.03, 0.2, 2.0)
+
+julia> Gd_  = sym2num(Gd, h, Pair.((T, d, w), (T_, d_, w_))...)
+TransferFunction{Discrete{Float64}, SisoRational{Float64}}
+1.4227382019434605e-5*z^3 + 4.2682146058303814e-5*z^2 + 4.2682146058303814e-5*z + 1.4227382019434605e-5
+-------------------------------------------------------------------------------------------------------
+              1.0*z^3 - 2.705920013658287*z^2 + 2.414628594192383*z - 0.7085947614779404
+
+Sample Time: 0.01 (seconds)
+Discrete-time transfer function model
+```
 
 
 ## Code generation
