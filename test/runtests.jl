@@ -44,8 +44,8 @@ end
         sys = ControlSystems.DemoSystems.resonant(;ω0)
         ssys = Sym(sys)
         n, d = sp.fraction(simplify(ssys))
-        @test SymbolicControlSystems.expand_coeffs(n) == [ω0^3]
-        @test sum(SymbolicControlSystems.expand_coeffs(d) - [1, 0.5, ω0^2+0.25^2]) == 0
+        @test SymbolicControlSystems.expand_coeffs(n, s) == [ω0^3]
+        @test sum(SymbolicControlSystems.expand_coeffs(d, s) - [1, 0.5, ω0^2+0.25^2]) == 0
     end
 
     @testset "Sym -> tf and vice versa" begin
@@ -98,6 +98,7 @@ end
 
         G = tf([a], [b, c], 0.1) 
         @test_throws ErrorException sym2num(G, a=>1, b=>1, c=>1) == tf(1,[1,1], 0.1)
+        
         @test sym2num(G, 0.1, a=>1, b=>1, c=>1) == tf(1,[1,1], 0.1)
         @test sym2num(G, 0.1, a=>1, b=>2, c=>1) == tf(1,[2,1], 0.1)
         @test sym2num(G, 0.1, a=>1, b=>1, c=>2) == tf(1,[1,2], 0.1)

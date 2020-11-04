@@ -90,8 +90,7 @@ function sym2num(P::Sym, h::Real, pairs::Pair...)
     nn = float.(expand_coeffs(n, z))
     nd = float.(expand_coeffs(d, z))
     if nd[1] != 1 # make monic
-        nn ./= nd[1]
-        nd ./= nd[1]
+        nn,nd = monic(nn,nd)
     end
     G = tf(nn, nd isa Number ? [nd] : nd, h)
     G
@@ -108,21 +107,12 @@ function sym2num(P::Sym, pairs::Pair...)
     nn = float.(expand_coeffs(n, s))
     nd = float.(expand_coeffs(d, s))
     if nd[1] != 1 # make monic
-        nn ./ nd[1]
-        nd ./ nd[1]
+        nn,nd = monic(nn,nd)
     end
     G = tf(nn, nd isa Number ? [nd] : nd)
     G
 end
 
-function latextf(x)
-    @warn "TODO: group coefficients of powers of s together"
-    n,d = sp.fraction(x)
-    s = "\$\\dfrac{$((n))}{$((d))}\$"
-    s = replace(s, '*' => "")
-    clipboard(s)
-    s
-end
 
 # replace_controllers(ex) = subs(ex, (C, Cᵥ2*(s+Cₚ2)), (Cₚ, Cₚ2), (Cᵥ,Cᵥ2)) |> simplify
 # numeric_tf(ex) = sym2num(replace_controllers(ex), ps, pn)
@@ -143,8 +133,7 @@ function tustin(Gs::Sym, h)
     Gtf = tf(Gt, h)
     n,d = numvec(Gtf)[], denvec(Gtf)[]
     d[1] == 1 && (return Gtf)
-    n = n ./ d[1]
-    d = d ./ d[1]
+    n,d = monic(n,d)
     tf(n,d,h)
 end
 
@@ -282,8 +271,40 @@ function structured_text(code)
     code = replace(code, " = " => " := ")
     clipboard(code)
     code
-
 end
+
+
+latextf(x::TransferFunction, args...) = latextf(Sym(x), args...)
+
+Latexify.Latexify(x::TransferFunction) = latextf(x, args...)
+
+function monic(n,d) 
+    n = n ./ d[1]
+    d = d ./ d[1] 
+    if n isa Number
+        n = [n]
+    end
+    n,d
+end
+
+"""
+    latextf(x, mon = true)
+
+Return a latex string representing `x`. If `mon`, then the denominator polynomial will be made monic (leading coefficient = 1).
+"""
+function latextf(x::Sym, mon=true)
+    var = x.has(z) ? z : s
+    n,d = sp.fraction(x)
+    if mon
+        n,d = monic(n,d)
+    end
+    n,d = sp.collect.((n,d), var)
+    str = "\$\\dfrac{$((n))}{$((d))}\$"
+    str = replace(str, '*' => "")
+    clipboard(str)
+    str
+end
+
 
 end
 

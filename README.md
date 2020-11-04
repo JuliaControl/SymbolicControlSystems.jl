@@ -61,6 +61,9 @@ TransferFunction{Discrete{Float64}, SisoRational{Float64}}
 
 Sample Time: 0.01 (seconds)
 Discrete-time transfer function model
+
+julia> latextf(G)
+"\$\\dfrac{1.0w^2}{0.003s^3 + s^2(0.006dw + 1.0) + s(2.0dw + 0.003w^2) + 1.0w^2}\$"
 ```
 
 
