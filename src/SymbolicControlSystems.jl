@@ -45,7 +45,7 @@ function ControlSystems.tf(sys::Sym, h=nothing)
     end
 end
 
-function expand_coeffs(n, var=s; numeric=false)
+function expand_coeffs(n, var; numeric=false)
     n = sp.Poly(n,var)
     deg = n.degree() |> Float64 |> Int
     c = n.all_coeffs() # This fails if the coeffs are symbolic
@@ -89,6 +89,10 @@ function sym2num(P::Sym, h::Real, pairs::Pair...)
     n, d = sp.Poly.(sp.fraction(P), z)
     nn = float.(expand_coeffs(n, z))
     nd = float.(expand_coeffs(d, z))
+    if nd[1] != 1 # make monic
+        nn ./= nd[1]
+        nd ./= nd[1]
+    end
     G = tf(nn, nd isa Number ? [nd] : nd, h)
     G
 end
@@ -103,6 +107,10 @@ function sym2num(P::Sym, pairs::Pair...)
     n, d = sp.Poly.(sp.fraction(P), s)    
     nn = float.(expand_coeffs(n, s))
     nd = float.(expand_coeffs(d, s))
+    if nd[1] != 1 # make monic
+        nn ./ nd[1]
+        nd ./ nd[1]
+    end
     G = tf(nn, nd isa Number ? [nd] : nd)
     G
 end
@@ -132,11 +140,16 @@ function tustin(Gs::Sym, h)
     @time Gt = sp.cancel(Gt) # Simplify takes forever with floating point values
     @time Gt = sp.collect(Gt, z) # Simplify takes forever with floating point values
     Gt = Gt.subs(hh, (2/h))
-    tf(Gt, h)
+    Gtf = tf(Gt, h)
+    n,d = numvec(Gtf)[], denvec(Gtf)[]
+    d[1] == 1 && (return Gtf)
+    n = n ./ d[1]
+    d = d ./ d[1]
+    tf(n,d,h)
 end
 
 
-function ccode(G::TransferFunction, simplify = identity, cse=false)
+function ccode(G::TransferFunction; simplify = identity, cse=true)
     P = Sym(G)
     P.has(z) || error("Did not find `z` in symbolic expression")
     P.has(s) && error("Found `s` in symbolic expression, provide expression in `z`")
@@ -196,14 +209,7 @@ double transfer_function(double ui$(var_str)) {
     code
 end
 
-# function suball_ccode(ex, subex)
-#     for se in subex
-#         ex = ex.subs(reverse(se)...)
-#     end
-#     sp.ccode(ex)
-# end
-
-function ccode(sys::StateSpace{<:Discrete})
+function ccode(sys::StateSpace{<:Discrete}; cse=true)
     nx = sys.nx
     u = Sym("u")
     x = [Sym("x[$(i-1)]") for i in 1:nx]
@@ -211,31 +217,54 @@ function ccode(sys::StateSpace{<:Discrete})
     vars = P.free_symbols
     vars.remove(z)
     vars = collect(vars)
+    vars = sort(vars, by=string)
     var_str = ""
     for var in vars
         var_str *= ", double $(var)"
     end
-    x1 = sp.collect.(sys.A*x + sys.B*u)
-    y = (sys.C*x + sys.D*u)[]
-    y = sp.collect(y)
+    x1 = sp.collect.(sys.A*x + sys.B*u, z)
+    @show y = (sys.C*x + sys.D*u)[]
+    @show y = sp.collect(y, z)
     
     code = """
 #include <stdio.h>\n
+#include <math.h>\n
 double transfer_function(double u$(var_str)) {
-    static double x[$(nx)] = {0};
-    static double x1[$(nx)] = {0};
+    static double x[$(nx)] = {0};  // Current state
+    double xp[$(nx)] = {0};        // Next state
     int i;
+    double y = 0; // Output
 """
+    if cse
+        @info "Finding common subexpressions"
+        subex, final = sp.cse([x1;y])
+        x1 = final[][1:length(x1)]
+        y = final[][length(x1)+1:end]
+        for se in subex
+            code *= "    double $(se[1]) = $(sp.ccode(se[2]));\n"
+        end
+    end
+    code *= "\n    // Advance the state xp = Ax + Bu\n"
     for (i,n) in enumerate(x1)
-        code *= "    x1[$(i-1)] = ($(sp.ccode(n)));\n"
+        code *= "    xp[$(i-1)] = ($(sp.ccode(n)));\n"
     end
     code *= """
-        for (i=0; i < $(nx-1); ++i) {
-            x[i] = x1[i];
-        }
+
+        // Accumulate the output y = C*x + D*u
     """
 
-    code *= "    return ($(sp.ccode(y))); // C*x + D*u\n}"
+    for (i,n) in enumerate(y)
+        code *= "    y += ($(sp.ccode(n)));\n"
+    end
+    code *= """
+
+        // Make the predicted state the current state
+        for (i=0; i < $(nx); ++i) {
+            x[i] = xp[i];
+        }
+    """
+    code *= "    return y;\n}"
+
     print(code)
     clipboard(code)
     code
