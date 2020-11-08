@@ -1,18 +1,17 @@
 # SymbolicControlSystems
 
-[![Build Status](https://github.com/baggepinnen/SymbolicControlSystems.jl/workflows/CI/badge.svg)](https://github.com/baggepinnen/SymbolicControlSystems.jl/actions)
-[![Coverage](https://codecov.io/gh/baggepinnen/SymbolicControlSystems.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/SymbolicControlSystems.jl)
-
 
 Utilities for
 - Working with [ControlSystems.jl](https://github.com/JuliaControl/ControlSystems.jl/) types with SymPy.jl symbols as coefficients.
 - Generation of C-code for filtering with LTI systems.
 
+This package exports the names `s,z` for the Laplace and Z-transform variables. These can be used to build symbolic transfer functions.
+
 ## Usage examples
 ```julia
 julia> using ControlSystems, SymbolicControlSystems
 
-julia> @vars w T d # Define symbolic variables
+julia> @vars w T d # Define (SymPy) symbolic variables
 (w, T, d)
 
 julia> h = 0.01;
@@ -61,14 +60,19 @@ TransferFunction{Discrete{Float64}, SisoRational{Float64}}
 
 Sample Time: 0.01 (seconds)
 Discrete-time transfer function model
-
+```
+Get a Latex-string
+```julia
 julia> latextf(G)
 "\$\\dfrac{1.0w^2}{0.003s^3 + s^2(0.006dw + 1.0) + s(2.0dw + 0.003w^2) + 1.0w^2}\$"
 ```
 
 
 ## Code generation
-The function `code = SymbolicControlSystems.ccode(G::LTISystem)` returns a string with C-code for filtering of a signal through the linear system `G`. A usage example follows
+The function `code = SymbolicControlSystems.ccode(G::LTISystem)` returns a string with C-code for filtering of a signal through the linear system `G`. All symbolic variables present in `G` will be expected as inputs to the generated function. The transfer-function state is handled by the C concept of `static` variables, i.e., a variable that remembers it's value since the last function invocation. The signature of the generated function `transfer_function` expects all input arguments in alphabetical order, except for the input `u` which always comes first.
+
+
+A usage example follows
 ```julia
 using ControlSystems, SymbolicControlSystems
 
@@ -102,3 +106,5 @@ y_,_ = lsim(Gd_, u); # Filter using Julia
 @test norm(y-y_)/norm(y_) < 1e-10
 plot([u y y_], lab=["u" "y c-code" "y julia"]) |> display
 ```
+
+NOTE: The usual caveats for transfer-function filtering applies. High-order transfer functions might cause numerical problems. Consider either filtering through many smaller transfer function in series, or convert the system into a well-balanced statespace system and generate code for this instead. See [lecture notes](http://www.control.lth.se/fileadmin/control/Education/EngineeringProgram/FRTN01/lectures/L11_slides6.pdf) slide 45 and onwards.

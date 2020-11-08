@@ -33,6 +33,11 @@ function SymPy.Sym(sys::TransferFunction)
     end
 end
 
+"""
+    ControlSystems.tf(sys::Sym, h = nothing)
+
+Convert a symbolic, rational expression into a transfer function. `h` denotes the sample time if the system is discrete.
+"""
 function ControlSystems.tf(sys::Sym, h=nothing)
     n,d = sp.fraction(sys)
     d = sp.Poly(d)
@@ -60,27 +65,13 @@ function ControlSystems.minreal(sys::TransferFunction{<:Any, <:ControlSystems.Si
 end
 
 
-# function sym2num(P, ps, p)
-#     @warn "TODO: accept a vector of pairs instead"
-#     # for i = 1:2
-#     for sym = ps
-#         ssym = Symbol(sym)
-#         hasfield(typeof(p), ssym) || continue
-#         val = float(getfield(p, ssym))
-#         P = subs(P, (sym, val))
-#     end
-#     # end
-#     n, d = sp.fraction(P) .|> sp.Poly
-#     nn = expand_coeffs(n, numeric=true)
-#     nd = expand_coeffs(d, numeric=true)
-#     G = tf(nn, nd isa Number ? [nd] : nd)
-#     # isstable(G) || @error "Unstable transfer function with poles $(pole(G))"
-#     G
-# end
-
-
 sym2num(P::TransferFunction, args...) = sym2num(Sym(P), args...)
 
+"""
+    sym2num(G, h::Real, pairs::Pair...)
+
+Replace symbols by numbers. `h` indicates the sample rate if the system is discrete.
+"""
 function sym2num(P::Sym, h::Real, pairs::Pair...)
     P.has(s) && error("Found `z` in symbolic expression, provide sample time as second argument to `sym2num`")
     for (sym, val) = pairs
@@ -96,6 +87,12 @@ function sym2num(P::Sym, h::Real, pairs::Pair...)
     G
 end
 
+
+"""
+    sym2num(G, pairs::Pair...)
+
+Replace symbols by numbers.
+"""
 function sym2num(P::Sym, pairs::Pair...)
     # for i = 1:2
     P.has(z) && error("Found `z` in symbolic expression, provide sample time as second argument to `sym2num`")
@@ -118,6 +115,11 @@ end
 # numeric_tf(ex) = sym2num(replace_controllers(ex), ps, pn)
 
 
+"""
+    tustin(G::LTISystem, h)
+
+Discretize `G` using the Tustin (bi-linear) method for sample time `h`.
+"""
 function tustin(G::LTISystem, h)
     iscontinuous(G) || throw(DomainError("Cannot discretize a discrete-domain system."))
     tustin(Sym(G), h)
@@ -138,6 +140,16 @@ function tustin(Gs::Sym, h)
 end
 
 
+"""
+    ccode(G; simplify = identity, cse = true)
+
+Return a string with C-code for filtering a signal `u` through `G`. 
+
+# Arguments:
+- `G`: A linear system
+- `simplify`: A function for symbolic simplification. You may try `Sympy.simplify`, but for large systems, this will take a long time to compute.
+- `cse`: Perform common subexpression elimination. This generally improvems the performance of the generated code.
+"""
 function ccode(G::TransferFunction; simplify = identity, cse=true)
     P = Sym(G)
     P.has(z) || error("Did not find `z` in symbolic expression")
