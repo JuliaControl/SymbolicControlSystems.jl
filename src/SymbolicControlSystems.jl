@@ -281,6 +281,7 @@ function structured_text(code)
     code = replace(code, r"double (\w+)" => s"\1 : LREAL")
     code = replace(code, r"(.{1,20}?) \+= " => s"\1 := \1 + ")
     code = replace(code, " = " => " := ")
+    print(code)
     clipboard(code)
     code
 end
