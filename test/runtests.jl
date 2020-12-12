@@ -12,6 +12,7 @@ macro test_both(G,sym)
         else
             @test Sym($(esc(G))) == $(esc(sym))
             @test $(esc(G)) == tf($(esc(sym)))
+            @test tf(ss($(esc(G)))) == tf($(esc(sym)))
         end
     end
 end

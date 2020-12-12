@@ -64,6 +64,11 @@ function ControlSystems.minreal(sys::TransferFunction{<:Any, <:ControlSystems.Si
     Sym(sys) |> simplify |> tf
 end
 
+function ControlSystems.tf(sys::StateSpace{<:Any, Sym})
+    n,p = simplify.(sp.Poly.(simplify.(sp.fraction(simplify(Sym(sys)))), s))
+    tf(simplify(n/p))
+end
+
 
 sym2num(P::TransferFunction, args...) = sym2num(Sym(P), args...)
 
