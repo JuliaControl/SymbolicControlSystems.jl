@@ -25,7 +25,6 @@ function SymPy.Sym(sys::StateSpace{<:Any, Sym})
 end
 
 function SymPy.Sym(sys::TransferFunction)
-    ControlSystems.numeric_type(sys) <: Sym || throw(MethodError(Sym, sys))
     if isdiscrete(sys)
         ssys = sp.Poly(numvec(sys)[], z)/sp.Poly(denvec(sys)[], z)
     else
@@ -116,10 +115,6 @@ function sym2num(P::Sym, pairs::Pair...)
 end
 
 
-# replace_controllers(ex) = subs(ex, (C, Cᵥ2*(s+Cₚ2)), (Cₚ, Cₚ2), (Cᵥ,Cᵥ2)) |> simplify
-# numeric_tf(ex) = sym2num(replace_controllers(ex), ps, pn)
-
-
 """
     tustin(G::LTISystem, h)
 
@@ -195,8 +190,11 @@ double transfer_function(double ui$(var_str)) {
     if cse
     @info "Finding common subexpressions"
         subex, final = sp.cse([n;d])
-        n = final[][1:length(n)]
-        d = final[][length(n)+1:end]
+        if final isa Vector{<:AbstractVector}
+            final = final[]
+        end
+        n = final[1:length(n)]
+        d = final[length(n)+1:end]
         for se in subex
             code *= "    double $(se[1]) = $(sp.ccode(se[2]));\n"
         end
