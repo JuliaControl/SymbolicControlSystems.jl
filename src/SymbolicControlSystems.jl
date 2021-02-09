@@ -208,7 +208,7 @@ double transfer_function(double ui$(var_str)) {
         code *= "    y[0] += ($(sp.ccode(-n)))*y[$(i)];\n"
     end
     code *= "    return y[0];\n}"
-    print(code)
+    println(code)
     clipboard(code)
     code
 end
@@ -269,7 +269,7 @@ double transfer_function(double u$(var_str)) {
     """
     code *= "    return y;\n}"
 
-    print(code)
+    println(code)
     clipboard(code)
     code
 end
@@ -284,7 +284,7 @@ function structured_text(code)
     code = replace(code, r"double (\w+)" => s"\1 : LREAL")
     code = replace(code, r"(.{1,20}?) \+= " => s"\1 := \1 + ")
     code = replace(code, " = " => " := ")
-    print(code)
+    println(code)
     clipboard(code)
     code
 end
