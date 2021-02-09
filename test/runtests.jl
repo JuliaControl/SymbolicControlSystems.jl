@@ -45,7 +45,7 @@ end
         sys = ControlSystems.DemoSystems.resonant(;ω0)
         ssys = Sym(sys)
         n, d = sp.fraction(simplify(ssys))
-        @test SymbolicControlSystems.expand_coeffs(n, s) == [ω0^3]
+        @test SymbolicControlSystems.expand_coeffs(n, s) == [1.0*ω0^3]
         @test sum(SymbolicControlSystems.expand_coeffs(d, s) - [1, 0.5, ω0^2+0.25^2]) == 0
     end
 

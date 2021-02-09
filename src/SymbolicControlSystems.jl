@@ -190,7 +190,7 @@ double transfer_function(double ui$(var_str)) {
     if cse
     @info "Finding common subexpressions"
         subex, final = sp.cse([n;d])
-        if final isa Vector{<:AbstractVector}
+        if length(final) == 1
             final = final[]
         end
         n = final[1:length(n)]
