@@ -344,6 +344,88 @@ function latextf(x::Sym, mon=true)
     str
 end
 
+show_construction(sys::LTISystem) = show_construction(stdout, sys)
+function show_construction(io::IO, sys::LTISystem)
+    sys = StateSpace(sys)
+    println(io, "A = ", sys.A)
+    println(io, "B = ", sys.B)
+    println(io, "C = ", sys.C)
+    println(io, "D = ", sys.D)
+    if isdiscrete(sys)
+        println(io, "sys = ss(A,B,C,D,$(sys.Ts))")
+    else
+        println(io, "sys = ss(A,B,C,D)")
+    end
+end
+
+"""
+sys2vec = @(sys) [
+        size(sys.A,1)
+        size(sys.B,2)
+        size(sys.C,1)
+        sys.A(:)
+        sys.B(:)
+        sys.C(:)
+        sys.D(:)
+    ]
+"""
+function vec2sys(v, ts=nothing)
+    nx = Int(v[1])
+    nu = Int(v[2])
+    ny = Int(v[3])
+    ai = (1:nx^2) .+ 3
+    bi = (1:nx*nu) .+ ai[end]
+    ci = (1:nx*ny) .+ bi[end]
+    di = (1:nu*ny) .+ ci[end]
+    A = reshape(v[ai], nx, nx)
+    B = reshape(v[bi], nx, nu)
+    C = reshape(v[ci], ny, nx)
+    D = reshape(v[di], ny, nu)
+    ts === nothing ? ss(A,B,C,D) : ss(A,B,C,D, ts)
+end
+
+
+print_c_array(a::AbstractArray, args...; kwargs...) = print_c_array(stdout, a, args...; kwargs...)
+function print_c_array(io, a::AbstractVector, name="vec"; cse=false)
+    l = length(a)
+    if cse
+        a = write_array_cse(io, a, name)
+    end
+    println(io, "    double $name[$l];")
+    for i = 1:l
+        println(io, "    $name[$(l-1)] = $(a[i]);")
+    end
+end
+function print_c_array(io, a::AbstractMatrix, name="mat"; cse=false)
+    r,c = size(a)
+    if cse
+        a = write_array_cse(io, a, name)
+    end
+    println(io, "    double $name[$r][$c];")
+    for i = 1:r, j = 1:c
+        println(io, "    $name[$(i-1)][$(j-1)] = $(a[i,j]);")
+    end
+end
+
+function print_c_array_interp(io, a::AbstractMatrix, t, name="mat"; cse=false)
+    r,c = size(a)
+    if cse
+        a = write_array_cse(io, a, name)
+    end
+    println(io, "    double $name[$r][$c];")
+    for i = 1:r, j = 1:c
+        println(io, "    $name[$(i-1)][$(j-1)] = $(a[i,j]);")
+    end
+end
+
+function write_array_cse(io, a, name="x")
+    subex, final = sp.cse(a, symbols=[SymPy.Sym(name*string(i)) for i in 1:200])
+    new_a = final[]
+    for se in subex
+        println(io, "    double $(se[1]) = $(sp.ccode(se[2]));")
+    end
+    new_a
+end
 
 end
 
