@@ -139,6 +139,29 @@ function tustin(Gs::Sym, h)
     tf(n,d,h)
 end
 
+"""
+    doubleeuler(sys::AbstractStateSpace{<:Continuous}, Ts)
+
+Discretize `sys` with a second-order approximation to the exponential map (Forward Euler is a first-order approximation). This is useful if the symbolic expressions for the true ZoH-discretization becomes too complicated. A second-order approximation is in many cases indistinguishable from the true ZoH-discretization.
+
+# Example
+```julia
+w = 2pi .* exp10.(LinRange(-1, log10(25), 400))
+sys = ssrand(1,1,4)
+bodeplot(sys, w, lab="cont")
+bodeplot!(c2d(sys, 0.001, :fwdeuler), w, label="fwdeuler")
+bodeplot!(doubleeuler(sys, 0.001), w, label="double euler")
+```
+"""
+function doubleeuler(sys::AbstractStateSpace{<:Continuous}, Ts)
+    A, B, C, D = ssdata(sys)
+    T = promote_type(eltype.((A,B,C,D))...)
+    ny, nu = size(sys)
+    nx = sys.nx
+    Ad, Bd, Cd, Dd = (I + Ts*A + Ts^2/2*A^2), Ts*B, C, D
+    ss(Ad, Bd, Cd, Dd, Ts)
+end
+
 
 """
     ccode(G; simplify = identity, cse = true)
