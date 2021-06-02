@@ -236,31 +236,39 @@ double transfer_function(double ui$(var_str)) {
     code
 end
 
-function ccode(sys::StateSpace{<:Discrete}; cse=true)
+function ccode(sys::StateSpace{<:Discrete}; cse=true, function_name = "transfer_function")
+    sys.nu == 1 || throw(ArgumentError("Multiple input not yet supported"))
     nx = sys.nx
+    ny = sys.ny
     u = Sym("u")
     x = [Sym("x[$(i-1)]") for i in 1:nx]
-    P = Sym(sys)
-    vars = P.free_symbols
-    vars.remove(z)
-    vars = collect(vars)
-    vars = sort(vars, by=string)
-    var_str = ""
-    for var in vars
-        var_str *= ", double $(var)"
+    # @show P
+    if ControlSystems.numeric_type(sys) <: SymPy.Sym
+        P = Sym(sys)
+        vars = P.free_symbols
+        vars.remove(z)
+        vars = collect(vars)
+        vars = sort(vars, by=string)
+        var_str = ""
+        for var in vars
+            var_str *= ", double $(var)"
+        end
+    else
+        var_str = ""
     end
-    x1 = sp.collect.(sys.A*x + sys.B*u, z)
-    @show y = (sys.C*x + sys.D*u)[]
-    @show y = sp.collect(y, z)
+    x1 = zeros(Sym, nx) # workaround for strange bug with undefinied referece appearing in Pluto only
+    y = zeros(Sym, ny)
+    @show x1 = mul!(x1, sys.A, x) + sys.B*u
+    @show y = mul!(y, sys.C, x) + sys.D*u
+    # @show y = sp.collect.(y, x)
     
     code = """
 #include <stdio.h>\n
 #include <math.h>\n
-double transfer_function(double u$(var_str)) {
+void $(function_name)(double *y, double u$(var_str)) {
     static double x[$(nx)] = {0};  // Current state
     double xp[$(nx)] = {0};        // Next state
     int i;
-    double y = 0; // Output
 """
     if cse
         @info "Finding common subexpressions"
@@ -281,7 +289,7 @@ double transfer_function(double u$(var_str)) {
     """
 
     for (i,n) in enumerate(y)
-        code *= "    y += ($(sp.ccode(n)));\n"
+        code *= "    y[$(i-1)] = ($(sp.ccode(n)));\n"
     end
     code *= """
 
@@ -290,7 +298,7 @@ double transfer_function(double u$(var_str)) {
             x[i] = xp[i];
         }
     """
-    code *= "    return y;\n}"
+    code *= "\n}"
 
     println(code)
     clipboard(code)

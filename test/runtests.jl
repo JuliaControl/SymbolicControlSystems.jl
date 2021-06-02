@@ -158,6 +158,29 @@ end
             end
         end
 
+        function c_lsim_ss(u, T, d, w)
+            y = zeros(1)
+            Libc.Libdl.dlopen(outname) do lib
+                fn = Libc.Libdl.dlsym(lib, :transfer_function)
+                map(u) do u
+                    @ccall $(fn)(y::Ref{Cdouble}, u::Float64, T::Float64, d::Float64, w::Float64)::Cvoid
+                    y[]
+                end
+            end
+        end
+
+        function c_lsim_ss(u)
+            Y = Libc.Libdl.dlopen(outname) do lib
+                fn = Libc.Libdl.dlsym(lib, :transfer_function)
+                map(u) do u
+                    y = zeros(2)
+                    @ccall $(fn)(y::Ref{Cdouble}, u::Float64)::Cvoid
+                    y
+                end
+            end
+            reduce(hcat, Y)'
+        end
+
         u = randn(1000); # Random input signal 
         T_, d_, w_ = 0.03, 0.2, 2.0 # Define system parameters
         y = c_lsim( u,  T_,  d_,  w_); # Filter u through the C-function filter
@@ -169,13 +192,47 @@ end
         code = SymbolicControlSystems.ccode(ss(Gd), cse=true)
         write(joinpath(path, filename), code)
         run(`gcc $filename -lm -shared -o $outname`)
-        y = c_lsim( u,  T_,  d_,  w_); # Filter u through the 
+        y = c_lsim_ss( u,  T_,  d_,  w_); # Filter u through the 
         y_,_ = lsim(ss(Gd_), u);
         @test norm(y-y_)/norm(y_) < 1e-10 # TODO: figure out why this is more sensitive
 
         G_ = sym2num(G, Pair.((T, d, w), (T_, d_, w_))...) 
-        y_,_ = lsim(c2d(ss(G_), h, :tustin)[1], u);
+        y_,_ = lsim(c2d(ss(G_), h, :tustin), u);
         @test norm(y-y_)/norm(y_) < 1e-10 # TODO: figure out why this is more sensitive
+
+
+
+        # test without symbols
+
+        J = 2
+        c = 1
+        G = tf(1.,[J^2,c,1])
+        Gn = tf(1.,[1,1,1])
+        Gt = tustin(G, 0.1)
+        code = SymbolicControlSystems.ccode(Gt)
+        @test occursin("static double u[3] = {0};", code)
+        @test occursin("static double y[3] = {0};", code)
+        @test occursin("double ui", code)
+        
+        code = SymbolicControlSystems.ccode(ss(Gt), cse=false)
+        @test occursin("double u", code)
+       
+        code = SymbolicControlSystems.ccode(ss(Gt), cse=true)
+        @test occursin("double u", code)
+
+        ## test multi output
+        Gt2 = c2d([ss(G); ss(Gn)], 0.1, :tustin)
+        code = SymbolicControlSystems.ccode(Gt2, cse=true)
+        write(joinpath(path, filename), code)
+        run(`gcc $filename -lm -shared -o $outname`)
+        @test occursin("double *y, double u", code)
+
+        u = randn(1000); # Random input signal 
+        y_,_ = lsim(Gt2, u); # Filter using Julia
+        y = c_lsim_ss(u);
+        @test norm(y-y_)/norm(y_) < 1e-10
+
+    end
 
     end
 end
