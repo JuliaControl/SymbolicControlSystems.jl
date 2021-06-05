@@ -397,44 +397,65 @@ function vec2sys(v, ts = nothing)
 end
 
 
-print_c_array(a::AbstractArray, args...; kwargs...) = print_c_array(stdout, a, args...; kwargs...)
-function print_c_array(io, a::AbstractVector, name="vec"; cse=false)
+print_c_array(a::AbstractArray, args...; kwargs...) =
+    print_c_array(stdout, a, args...; kwargs...)
+function print_c_array(io, a::AbstractVector, name = "vec"; cse = false, s = "", struct_name=nothing)
     l = length(a)
     if cse
-        a = write_array_cse(io, a, name)
+        a = write_array_cse(io, a, name; s)
     end
-    println(io, "    double $name[$l];")
+    if struct_name === nothing
+        s == "" && println(io, "double $name[$l];")
+        struct_name = ""
+    else
+        struct_name = struct_name*"->"
+    end
     for i = 1:l
-        println(io, "    $name[$(l-1)] = $(a[i]);")
+        println(io, "$(struct_name)" * s * "$name[$(i-1)] = $(a[i]);")
     end
 end
-function print_c_array(io, a::AbstractMatrix, name="mat"; cse=false)
-    r,c = size(a)
+function print_c_array(io, a::AbstractMatrix, name = "mat"; cse = false, s = "", struct_name=nothing)
+    r, c = size(a)
     if cse
-        a = write_array_cse(io, a, name)
+        a = write_array_cse(io, a, name; s)
     end
+    if struct_name === nothing
+        s == "" && println(io, "double $name[$r][$c];")
+        struct_name = ""
+    else
+        struct_name = struct_name*"->"
+    end
+    for i = 1:r, j = 1:c
+        println(io, "$(struct_name)" * s * "$name[$(i-1)][$(j-1)] = $(a[i,j]);")
+    end
+end
+
+function print_c_array(io, a::AbstractArray{<:Any,3}, name = "array"; cse = false, s = "", struct_name=nothing)
+    r, c, d = size(a)
+    if cse
+        a = write_array_cse(io, a, name; s)
+    end
+    if struct_name === nothing
+        s == "" && println(io, "double $name[$r][$c][$d];")
+        struct_name = ""
+    else
+        struct_name = struct_name*"->"
+    end
+    for i = 1:r, j = 1:c, k = 1:d
+        println(io, "$(struct_name)" * s * "$name[$(i-1)][$(j-1)][$(k-1)] = $(a[i,j,k]);")
+    end
+end
     println(io, "    double $name[$r][$c];")
     for i = 1:r, j = 1:c
         println(io, "    $name[$(i-1)][$(j-1)] = $(a[i,j]);")
     end
 end
 
-function print_c_array_interp(io, a::AbstractMatrix, t, name="mat"; cse=false)
-    r,c = size(a)
-    if cse
-        a = write_array_cse(io, a, name)
-    end
-    println(io, "    double $name[$r][$c];")
-    for i = 1:r, j = 1:c
-        println(io, "    $name[$(i-1)][$(j-1)] = $(a[i,j]);")
-    end
-end
-
-function write_array_cse(io, a, name="x")
-    subex, final = sp.cse(a, symbols=[SymPy.Sym(name*string(i)) for i in 1:200])
+function write_array_cse(io, a, name = "x", s = "")
+    subex, final = sp.cse(a, symbols = [SymPy.Sym(name * string(i)) for i = 1:200])
     new_a = final[]
     for se in subex
-        println(io, "    double $(se[1]) = $(sp.ccode(se[2]));")
+        println(io, "double $(se[1]) = $(sp.ccode(se[2]));")
     end
     new_a
 end
