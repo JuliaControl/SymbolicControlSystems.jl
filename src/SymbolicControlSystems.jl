@@ -1,9 +1,23 @@
 module SymbolicControlSystems
 using LinearAlgebra
 using ControlSystems, SymPy, Latexify
+# import Symbolics
 using InteractiveUtils
 
-export sp, sym2num, latextf, Sym, @vars, simplify, tustin, s, z
+export sp,
+    sym2num,
+    latextf,
+    Sym,
+    @vars,
+    simplify,
+    tustin,
+    doubleeuler,
+    s,
+    z,
+    print_c_array,
+    show_construction
+
+# export symbolics2sym
 
 const sp = SymPy.PyCall.PyNULL()
 
@@ -445,9 +459,114 @@ function print_c_array(io, a::AbstractArray{<:Any,3}, name = "array"; cse = fals
         println(io, "$(struct_name)" * s * "$name[$(i-1)][$(j-1)][$(k-1)] = $(a[i,j,k]);")
     end
 end
-    println(io, "    double $name[$r][$c];")
-    for i = 1:r, j = 1:c
-        println(io, "    $name[$(i-1)][$(j-1)] = $(a[i,j]);")
+
+
+# Interpolation
+function print_c_array(
+    io,
+    a::Vector{<:AbstractArray},
+    t::AbstractVector,
+    name          = "mat";
+    cse           = false,
+    s             = "",
+    print_vector  = true,
+    print_logic   = true,
+    struct_name::Union{Nothing, String} = nothing,
+    struct_type   = nothing,
+)
+    length(a) == length(t) || throw(ArgumentError("length mismatch between a and t"))
+    ivecname = name * "_interpolation_vector"
+    print_vector && print_c_array(io, t, ivecname; cse, s, struct_name)
+    # for i in eachindex(t)
+    #     iname = name*"_$(i-1)"
+    #     print_c_array(io, a[i], iname; cse, s)
+    # end
+    a = cat(a..., dims = 3)
+
+    if struct_name !== nothing
+        struct_type isa String || throw(ArgumentError("Expected a struct type since you provided struct name"))
+        print_c_array(io, a, name * "_interp"; cse, s, struct_name)
+        println(io, "void interpolate_$(name)($(struct_type) *$(struct_name), double t) {")
+        ivecname = struct_name*"->"*ivecname
+    else
+        print_c_array(io, a, name * "_interp"; cse, s)
+        println(
+        io,
+        "void interpolate_$(name)(double *$(name), double *$(name)_interp, double *$(ivecname), double t) {"
+        )
+    end
+
+    println(
+        io,
+        """
+    int k = 0;
+    for (k = 0; k < $(length(t)-2); ++k) { // Loop to find correct interval
+        if (t < $(ivecname)[k+1]) {
+            break;
+        }
+    } // t is now between indices k and k+1 modolu edge cases below
+    double t0 = $(ivecname)[k];
+    double t1 = $(ivecname)[k+1];
+    double l = t1 - t0;      // Length of interval between points
+    double alpha = (t-t0)/l; // Between 0 and 1, proportion of k+1 point
+    if (t < $(ivecname)[0]) { // edge cases
+        alpha = 0;
+    }else if (t > $(ivecname)[$(length(t)-1)]) {
+        alpha = 1;
+    }
+$(interpolator_string(a, name, struct_name, struct_type))}
+""",
+    )
+end
+
+function interpolator_string(a::AbstractArray{<:Any,3}, name, struct_name, struct_type)
+    if struct_name === nothing
+        """
+            for (int i = 0; i < $(size(a, 1)); ++i) {     // $name has dimensions $((size(a)[1:2]))
+                for (int j = 0; j < $(size(a, 2)); ++j) { // $(name)_interp has dimensions $((size(a)))
+                    $(name)[i][j] = (1-alpha)*$(name)_interp[i][j][k] + alpha*$(name)_interp[i][j][k+1];
+                }
+            }
+        """
+    else
+        name = struct_name*"->"*name
+        """
+            for (int i = 0; i < $(size(a, 1)); ++i) {     // $name has dimensions $((size(a)[1:2]))
+                for (int j = 0; j < $(size(a, 2)); ++j) { // $(name)_interp has dimensions $((size(a)))
+                    $(name)[i][j] = (1-alpha)*$(name)_interp[i][j][k] + alpha*$(name)_interp[i][j][k+1];
+                }
+            }
+        """
+    end
+end
+
+# StateSpace
+function print_c_array(io, sys::AbstractStateSpace; s = "", en = "")
+    print_c_array(io, sys.A, "A" * en; s)
+    print_c_array(io, sys.B, "B" * en; s)
+    print_c_array(io, sys.C, "C" * en; s)
+    print_c_array(io, sys.D, "D" * en; s)
+end
+
+
+# Interpolated StateSpace
+function print_c_array(
+    io,
+    sys::Vector{<:AbstractStateSpace},
+    t::AbstractVector,
+    name = "sys";
+    cse = false,
+    s = "",
+    en = "",
+    struct_name::Union{Nothing, String} = nothing,
+    struct_type   = nothing,
+)
+    length(sys) == length(t) || throw(ArgumentError("length mismatch between a and t"))
+    print_c_array(io, t, name * en * "_interpolation_vector"; cse, s, struct_name)
+    for p in (:A, :B, :C, :D)
+        A = getproperty.(sys, p)
+        print_c_array(io, A, t, name * "_" * string(p) * en; cse, s, print_vector = false, struct_name, struct_type)
+        # print_c_array(io, A, "A" * en; s)
     end
 end
 
@@ -460,5 +579,28 @@ function write_array_cse(io, a, name = "x", s = "")
     new_a
 end
 
-end
 
+# """
+#     symbolics2sym(ex)
+
+# Convert a Symbolics expression to the equivalent SymPy expression with the same variables names.
+# """
+# function symbolics2sym(ex)
+#     vars = Symbolics.get_variables(ex)
+#     fun1 = Symbolics.build_function(ex)
+#     fa2 = fun1.args[2]
+#     @assert fa2.head === :block
+#     construct_sym_ex = map(vars) do v
+#         vs = string(v)
+#         q = Symbol(vs)
+#         :($(q) = SymPy.Sym($vs))
+#     end
+#     fa3 = fa2.args
+#     for c in reverse(construct_sym_ex)
+#         insert!(fa3, 3, c)
+#     end
+#     func = eval(fun1)
+#     Base.invokelatest(func)
+# end
+
+end
