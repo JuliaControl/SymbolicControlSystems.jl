@@ -419,7 +419,7 @@ print_c_array(a::AbstractArray, args...; kwargs...) =
 function print_c_array(io, a::AbstractVector, name = "vec"; cse = false, s = "", struct_name=nothing)
     l = length(a)
     if cse
-        a = write_array_cse(io, a, name; s)
+        a = write_array_cse(io, a, name, s)
     end
     if struct_name === nothing
         s == "" && println(io, "double $name[$l];")
@@ -434,7 +434,7 @@ end
 function print_c_array(io, a::AbstractMatrix, name = "mat"; cse = false, s = "", struct_name=nothing)
     r, c = size(a)
     if cse
-        a = write_array_cse(io, a, name; s)
+        a = write_array_cse(io, a, name, s)
     end
     if struct_name === nothing
         s == "" && println(io, "double $name[$r][$c];")
@@ -450,7 +450,7 @@ end
 function print_c_array(io, a::AbstractArray{<:Any,3}, name = "array"; cse = false, s = "", struct_name=nothing)
     r, c, d = size(a)
     if cse
-        a = write_array_cse(io, a, name; s)
+        a = write_array_cse(io, a, name, s)
     end
     if struct_name === nothing
         s == "" && println(io, "double $name[$r][$c][$d];")
