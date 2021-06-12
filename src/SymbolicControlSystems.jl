@@ -370,28 +370,31 @@ function latextf(x::Sym, mon = true)
     str
 end
 
-show_construction(sys::LTISystem) = show_construction(stdout, sys)
-function show_construction(io::IO, sys::LTISystem)
+show_construction(sys::LTISystem; kwargs...) = show_construction(stdout, sys; kwargs...)
+function show_construction(io::IO, sys::LTISystem; letb = true)
     sys = StateSpace(sys)
-    println(io, "A = ", sys.A)
-    println(io, "B = ", sys.B)
-    println(io, "C = ", sys.C)
-    println(io, "D = ", sys.D)
+    letb && println(io, "sys = let")
+    println(io, "    _A = ", sys.A)
+    println(io, "    _B = ", sys.B)
+    println(io, "    _C = ", sys.C)
+    println(io, "    _D = ", sys.D)
+    letb || print(io, "sys = ")
     if isdiscrete(sys)
-        println(io, "sys = ss(A,B,C,D,$(sys.Ts))")
+        println(io, "    ss(_A, _B, _C, _D, $(sys.Ts))")
     else
-        println(io, "sys = ss(A,B,C,D)")
+        println(io, "    ss(_A, _B, _C, _D)")
     end
+    println(io, "end")
 end
 
 """
 sys2vec = @(sys) [
-        size(sys.A,1)
-        size(sys.B,2)
-        size(sys.C,1)
-        sys.A(:)
-        sys.B(:)
-        sys.C(:)
+        size(sys.A,1);
+        size(sys.B,2);
+        size(sys.C,1);
+        sys.A(:);
+        sys.B(:);
+        sys.C(:);
         sys.D(:)
     ]
 """
