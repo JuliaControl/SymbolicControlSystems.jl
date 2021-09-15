@@ -372,19 +372,21 @@ end
 
 show_construction(sys::LTISystem; kwargs...) = show_construction(stdout, sys; kwargs...)
 function show_construction(io::IO, sys::LTISystem; letb = true)
-    sys = StateSpace(sys)
+    # sys = StateSpace(sys)
     letb && println(io, "sys = let")
-    println(io, "    _A = ", sys.A)
-    println(io, "    _B = ", sys.B)
-    println(io, "    _C = ", sys.C)
-    println(io, "    _D = ", sys.D)
+    prestr = letb ? "    " : "" 
+    println(io, prestr*"tempA = ", sys.A)
+    println(io, prestr*"tempB = ", sys.B)
+    println(io, prestr*"tempC = ", sys.C)
+    println(io, prestr*"tempD = ", sys.D)
     letb || print(io, "sys = ")
     if isdiscrete(sys)
-        println(io, "    ss(_A, _B, _C, _D, $(sys.Ts))")
+        println(io, prestr*"ss(tempA, tempB, tempC, tempD, $(sys.Ts))")
     else
-        println(io, "    ss(_A, _B, _C, _D)")
+        println(io, prestr*"ss(tempA, tempB, tempC, tempD)")
     end
-    println(io, "end")
+    letb && println(io, "end")
+    nothing
 end
 
 """
@@ -418,6 +420,7 @@ print_c_array(a::AbstractArray, args...; kwargs...) =
     print_c_array(stdout, a, args...; kwargs...)
 function print_c_array(io, a::AbstractVector, name = "vec"; cse = false, s = "", struct_name=nothing)
     l = length(a)
+    a = float.(a)
     if cse
         a = write_array_cse(io, a, name, s)
     end
@@ -430,9 +433,11 @@ function print_c_array(io, a::AbstractVector, name = "vec"; cse = false, s = "",
     for i = 1:l
         println(io, "$(struct_name)" * s * "$name[$(i-1)] = $(a[i]);")
     end
+    println(io)
 end
 function print_c_array(io, a::AbstractMatrix, name = "mat"; cse = false, s = "", struct_name=nothing)
     r, c = size(a)
+    a = float.(a)
     if cse
         a = write_array_cse(io, a, name, s)
     end
@@ -445,10 +450,12 @@ function print_c_array(io, a::AbstractMatrix, name = "mat"; cse = false, s = "",
     for i = 1:r, j = 1:c
         println(io, "$(struct_name)" * s * "$name[$(i-1)][$(j-1)] = $(a[i,j]);")
     end
+    println(io)
 end
 
 function print_c_array(io, a::AbstractArray{<:Any,3}, name = "array"; cse = false, s = "", struct_name=nothing)
     r, c, d = size(a)
+    a = float.(a)
     if cse
         a = write_array_cse(io, a, name, s)
     end
@@ -461,6 +468,7 @@ function print_c_array(io, a::AbstractArray{<:Any,3}, name = "array"; cse = fals
     for i = 1:r, j = 1:c, k = 1:d
         println(io, "$(struct_name)" * s * "$name[$(i-1)][$(j-1)][$(k-1)] = $(a[i,j,k]);")
     end
+    println(io)
 end
 
 
@@ -476,9 +484,9 @@ function print_c_array(
     print_logic   = true,
     struct_name::Union{Nothing, String} = nothing,
     struct_type   = nothing,
+    ivecname = name * "_interp_vect",
 )
     length(a) == length(t) || throw(ArgumentError("length mismatch between a and t"))
-    ivecname = name * "_interpolation_vector"
     print_vector && print_c_array(io, t, ivecname; cse, s, struct_name)
     # for i in eachindex(t)
     #     iname = name*"_$(i-1)"
@@ -544,11 +552,11 @@ function interpolator_string(a::AbstractArray{<:Any,3}, name, struct_name, struc
 end
 
 # StateSpace
-function print_c_array(io, sys::AbstractStateSpace; s = "", en = "")
-    print_c_array(io, sys.A, "A" * en; s)
-    print_c_array(io, sys.B, "B" * en; s)
-    print_c_array(io, sys.C, "C" * en; s)
-    print_c_array(io, sys.D, "D" * en; s)
+function print_c_array(io, sys::AbstractStateSpace, args...; s = "", en = "", struct_name=nothing)
+    print_c_array(io, sys.A, "A" * en; s, struct_name)
+    print_c_array(io, sys.B, "B" * en; s, struct_name)
+    print_c_array(io, sys.C, "C" * en; s, struct_name)
+    print_c_array(io, sys.D, "D" * en; s, struct_name)
 end
 
 
@@ -565,11 +573,11 @@ function print_c_array(
     struct_type   = nothing,
 )
     length(sys) == length(t) || throw(ArgumentError("length mismatch between a and t"))
-    print_c_array(io, t, name * en * "_interpolation_vector"; cse, s, struct_name)
+    ivecname = name * en * "_interp_vect"
+    print_c_array(io, t, ivecname; cse, s, struct_name)
     for p in (:A, :B, :C, :D)
         A = getproperty.(sys, p)
-        print_c_array(io, A, t, name * "_" * string(p) * en; cse, s, print_vector = false, struct_name, struct_type)
-        # print_c_array(io, A, "A" * en; s)
+        print_c_array(io, A, t, name * "_" * string(p) * en; cse, s, print_vector = false, struct_name, struct_type, ivecname)
     end
 end
 
