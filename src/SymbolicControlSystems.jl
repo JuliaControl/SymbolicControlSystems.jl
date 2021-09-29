@@ -20,11 +20,13 @@ export sp,
 # export symbolics2sym
 
 const sp = SymPy.PyCall.PyNULL()
+const s = SymPy.Sym("s")
+const z = SymPy.Sym("z")
 
 
 function __init__()
-    @eval global const s = Sym("s")
-    @eval global const z = Sym("z")
+    # global const s = Sym("s")
+    # global const z = Sym("z")
     copy!(sp, SymPy.sympy)
 end
 
