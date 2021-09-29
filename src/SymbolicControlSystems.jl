@@ -278,7 +278,10 @@ double transfer_function(double ui$(var_str)) {
     end
     code *= "    return y[0];\n}"
     println(code)
-    clipboard(code)
+    try
+        clipboard(code)
+    catch
+    end
     code
 end
 
@@ -347,7 +350,10 @@ void $(function_name)(double *y, double u$(var_str)) {
     code *= "\n}"
 
     println(code)
-    clipboard(code)
+    try
+        clipboard(code)
+    catch
+    end
     code
 end
 
@@ -362,7 +368,10 @@ function structured_text(code)
     code = replace(code, r"(.{1,20}?) \+= " => s"\1 := \1 + ")
     code = replace(code, " = " => " := ")
     println(code)
-    clipboard(code)
+    try
+        clipboard(code)
+    catch
+    end
     code
 end
 
@@ -394,7 +403,10 @@ function latextf(x::Sym, mon = true)
     n, d = sp.collect.((n, d), var)
     str = "\$\\dfrac{$((n))}{$((d))}\$"
     str = replace(str, '*' => "")
-    clipboard(str)
+    try
+        clipboard(code)
+    catch
+    end
     str
 end
 
