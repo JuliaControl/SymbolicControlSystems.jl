@@ -1,3 +1,4 @@
+__precompile__(false)
 module SymbolicControlSystems
 using LinearAlgebra
 using ControlSystems, SymPy, Latexify
