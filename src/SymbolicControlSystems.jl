@@ -2,7 +2,7 @@ __precompile__(false)
 module SymbolicControlSystems
 using LinearAlgebra
 using ControlSystems, SymPy, Latexify
-# import Symbolics
+import Symbolics
 using InteractiveUtils
 
 export sp,
@@ -85,30 +85,38 @@ function ControlSystems.tf(sys::StateSpace{<:Any,Sym})
     tf(simplify(n / p))
 end
 
-# function Symbolics.Num(sys::StateSpace{<:Any,Symbolics.Num})
-#     A,B,C,D = ssdata(sys)
-#     if isdiscrete(sys)
-#         sz = Symbolics.@variables z
-#     else
-#         sz = Symbolics.@variables s
-#     end
-#     sz = only(sz)
-#     ex = (C*inv(sz * I(size(A, 1)) - A)*B + D)
-#     # if length(ex) == 1
-#     #     return ex[1] # don't do this as this complicates later function building
-#     # else
-#     #     return ex
-#     # end
-#     # ex = Symbolics.expand(ex)
-#     # ds = Symbolics.degree(ex, sz)
-#     # Symbolics.get_variables(ex)
-#     # Symbolics.polynormalize(ex)
-# end
+function Symbolics.Num(sys::StateSpace{<:Any,Symbolics.Num})
+    A,B,C,D = ssdata(sys)
+    if isdiscrete(sys)
+        sz = Symbolics.@variables z
+    else
+        sz = Symbolics.@variables s
+    end
+    sz = only(sz)
+    ex = (C*inv(sz * I(size(A, 1)) - A)*B + D)
+    # if length(ex) == 1
+    #     return ex[1] # don't do this as this complicates later function building
+    # else
+    #     return ex
+    # end
+    # ex = Symbolics.expand(ex)
+    # ds = Symbolics.degree(ex, sz)
+    # Symbolics.get_variables(ex)
+    # Symbolics.polynormalize(ex)
+end
 
-# function ControlSystems.tf(sys::StateSpace{<:Any,Symbolics.Num})
-#     n, p = simplify.(sp.Poly.(simplify.(sp.fraction(simplify(Sym(sys)))), s))
-#     tf(simplify(n / p))
-# end
+function ControlSystems.tf(sys::StateSpace{<:Any,Symbolics.Num})
+    n, p = simplify.(sp.Poly.(simplify.(sp.fraction(simplify(Sym(sys)))), s))
+    tf(simplify(n / p))
+end
+
+
+function ControlSystems.minreal(sys::StateSpace{<:Any,Symbolics.Num})
+    # sys |> Symbolics.Num .|> Symbolics.symbolics_to_sympy .|> sp.simplify
+    nsys = Symbolics.Num(sys)
+    nsys = Symbolics.simplify.(nsys)
+    nsys = Symbolics.simplify_fractions.(nsys)
+end
 
 
 sym2num(P::TransferFunction, args...) = sym2num(Sym(P), args...)
@@ -631,27 +639,5 @@ function write_array_cse(io, a, name = "x", s = "")
 end
 
 
-# """
-#     symbolics2sym(ex)
-
-# Convert a Symbolics expression to the equivalent SymPy expression with the same variables names.
-# """
-# function symbolics2sym(ex)
-#     vars = Symbolics.get_variables(ex)
-#     fun1 = Symbolics.build_function(ex)
-#     fa2 = fun1.args[2]
-#     @assert fa2.head === :block
-#     construct_sym_ex = map(vars) do v
-#         vs = string(v)
-#         q = Symbol(vs)
-#         :($(q) = SymPy.Sym($vs))
-#     end
-#     fa3 = fa2.args
-#     for c in reverse(construct_sym_ex)
-#         insert!(fa3, 3, c)
-#     end
-#     func = eval(fun1)
-#     Base.invokelatest(func)
-# end
 
 end
