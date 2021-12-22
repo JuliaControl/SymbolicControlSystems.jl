@@ -196,7 +196,7 @@ end
 """
     doubleeuler(sys::AbstractStateSpace{<:Continuous}, Ts)
 
-Discretize `sys` with a second-order approximation to the exponential map (Forward Euler is a first-order approximation). This is useful if the symbolic expressions for the true ZoH-discretization becomes too complicated. A second-order approximation is in many cases indistinguishable from the true ZoH-discretization.
+Discretize `sys` with a second-order approximation to the exponential map (Forward Euler is a first-order approximation). This is useful if the symbolic expressions for the true ZoH-discretization becomes too complicated. A second-order approximation is in many cases indistinguishable from the true ZoH-discretization, but requires a well-balanced state-space realization.
 
 # Example
 ```julia
@@ -212,8 +212,13 @@ function doubleeuler(sys::AbstractStateSpace{<:Continuous}, Ts)
     T = promote_type(eltype.((A, B, C, D))...)
     ny, nu = size(sys)
     nx = sys.nx
-    Ad, Bd, Cd, Dd = (I + Ts * A + Ts^2 / 2 * A^2), Ts * B, C, D
-    ss(Ad, Bd, Cd, Dd, Ts)
+    A = [A B; zeros(nu, nx + nu)]
+    A2 = A*A
+    # A3 = A2*A
+    M = I + Ts * A + Ts^2 / 2 * A2 #+ Ts^3 / 6 * A3
+    Ad = M[1:nx, 1:nx]
+    Bd = M[1:nx, nx+1:nx+nu]
+    ss(Ad, Bd, C, D, Ts)
 end
 
 
