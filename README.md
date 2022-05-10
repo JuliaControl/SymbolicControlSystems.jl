@@ -98,13 +98,13 @@ function c_lsim(u, T, d, w)
     end
 end
 
-u    = randn(100); # Random input signal 
+u    = randn(1,100); # Random input signal 
 T_, d_, w_ = 0.03, 0.2, 2.0 # Define system parameters
 y    = c_lsim( u,  T_,  d_,  w_); # Filter u through the C-function filter
 Gd_  = sym2num(Gd, h, Pair.((T, d, w), (T_, d_, w_))...) # Replace symbols with numeric constants
-y_,_ = lsim(Gd_, u); # Filter using Julia
+y_,_ = lsim(ss(Gd_), u); # Filter using Julia
 @test norm(y-y_)/norm(y_) < 1e-10
-plot([u y y_], lab=["u" "y c-code" "y julia"]) |> display
+plot([u; y; y_]', lab=["u" "y c-code" "y julia"]) |> display
 ```
 
 NOTE: The usual caveats for transfer-function filtering applies. High-order transfer functions might cause numerical problems. Consider either filtering through many smaller transfer function in series, or convert the system into a well-balanced statespace system and generate code for this instead. See [lecture notes](http://www.control.lth.se/fileadmin/control/Education/EngineeringProgram/FRTN01/lectures/L11_slides6.pdf) slide 45 and onwards.
