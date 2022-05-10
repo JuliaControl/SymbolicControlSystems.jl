@@ -181,11 +181,11 @@ end
             reduce(hcat, Y)'
         end
 
-        u = randn(1000); # Random input signal 
+        u = randn(1,1000); # Random input signal 
         T_, d_, w_ = 0.03, 0.2, 2.0 # Define system parameters
         y = c_lsim( u,  T_,  d_,  w_); # Filter u through the C-function filter
         Gd_ = sym2num(Gd, h, Pair.((T, d, w), (T_, d_, w_))...) # Replace symbols with numeric constants
-        y_,_ = lsim(Gd_, u); # Filter using Julia
+        y_,_ = lsim(ss(Gd_), u); # Filter using Julia
         @test norm(y-y_)/norm(y_) < 1e-10
             
 
@@ -227,10 +227,10 @@ end
         run(`gcc $filename -lm -shared -o $outname`)
         @test occursin("double *y, double u", code)
 
-        u = randn(1000); # Random input signal 
+        u = randn(1,1000); # Random input signal 
         y_,_ = lsim(Gt2, u); # Filter using Julia
         y = c_lsim_ss(u);
-        @test norm(y-y_)/norm(y_) < 1e-10
+        @test norm(y'-y_)/norm(y_) < 1e-10
 
     end
 
