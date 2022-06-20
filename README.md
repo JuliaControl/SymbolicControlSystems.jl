@@ -2,10 +2,10 @@
 
 
 Utilities for
-- Working with [ControlSystems.jl](https://github.com/JuliaControl/ControlSystems.jl/) types with SymPy.jl symbols as coefficients.
+- Working with [ControlSystems.jl](https://github.com/JuliaControl/ControlSystems.jl/) types with SymPy.jl and Symbolics.jl symbols as coefficients.
 - Generation of C-code for filtering with LTI systems.
 
-This package exports the names `s,z` for the Laplace and Z-transform variables. These can be used to build symbolic transfer functions.
+This package exports the names `s,z` of type `SymPy.Sym` for the Laplace and Z-transform variables. These can be used to build symbolic transfer functions. To build symbolic transfer functions with Symbolics.jl symbols, create `s` or `z` using `using Symbolics; @variables s`.
 
 ## Usage examples
 ```julia
