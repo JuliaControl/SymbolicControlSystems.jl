@@ -1,7 +1,10 @@
 using SymbolicControlSystems
 using Test
 using ControlSystems
-using SymbolicControlSystems: s, z
+s = SymbolicControlSystems.s
+z = SymbolicControlSystems.z
+import Symbolics
+import Symbolics: Num
 
 
 macro test_both(G,sym)
@@ -13,6 +16,19 @@ macro test_both(G,sym)
             @test Sym($(esc(G))) == $(esc(sym))
             @test $(esc(G)) == tf($(esc(sym)))
             @test tf(ss($(esc(G)))) == tf($(esc(sym)))
+        end
+    end
+end
+
+macro test_both_symb(G,sym)
+    quote
+        if isdiscrete($(esc(G))) 
+            @test isequal(Num($(esc(G))), $(esc(sym)))
+            @test isequal($(esc(G)), tf($(esc(sym)), $(esc(G)).Ts))
+        else
+            @test isequal(Num($(esc(G))), $(esc(sym)))
+            @test $(esc(G)) == tf($(esc(sym)))
+            # @test isequal(tf(ss($(esc(G)))), tf($(esc(sym)))) # ss -> tf calls eigvals which fails on Num
         end
     end
 end
@@ -49,10 +65,8 @@ end
         @test sum(SymbolicControlSystems.expand_coeffs(d, s) - [1, 0.5, ω0^2+0.25^2]) == 0
     end
 
-    @testset "Sym -> tf and vice versa" begin
-        @info "Testing Sym -> tf and vice versa"
-
-
+    @testset "SymPy: Sym -> tf and vice versa" begin
+        @info "SymPy: Testing Sym -> tf and vice versa"
 
         @vars a b c
         @test_both tf([a], [b, c])  a/(b*s + c)
@@ -81,7 +95,6 @@ end
         @test_both tf([b, a], [1, c, 1], 0.1)  (b*z + a)/(z^2 + c*z + 1)
         
     end
-
 
 
     @testset "sym2num" begin
@@ -236,18 +249,51 @@ end
 
 
 
-    # @testset "symbolics2sym" begin
-    #     @info "Testing symbolics2sym"
-        
-    #     @variables s m k c b d a
-    #     Ld1 = ((-exp(-0.001b) - (2exp(-0.001sqrt(k))))*((0.001 - (5.0e-7c*(m^-1)))*(5.0e-7c*k*(m^-2) - (0.001k*(m^-1))) + (1.0 - (5.0e-7k*(m^-1)))^2) + (exp(-0.001sqrt(k))^2 + 2exp(-0.001b)*exp(-0.001sqrt(k)))*(1.0 - (5.0e-7k*(m^-1))) + ((0.001 - (5.0e-7c*(m^-1)))*(5.0e-7c*k*(m^-2) - (0.001k*(m^-1))) + (1.0 - (5.0e-7k*(m^-1)))^2)*(1.0 - (5.0e-7k*(m^-1))) + ((1.0 - (5.0e-7k*(m^-1)))*(5.0e-7c*k*(m^-2) - (0.001k*(m^-1))) + (5.0e-7c*k*(m^-2) - (0.001k*(m^-1)))*(1.0 + 5.0e-7(c^2)*(m^-2) - (0.001c*(m^-1)) - (5.0e-7k*(m^-1))))*(0.001 - (5.0e-7c*(m^-1))) - (5.0e-10((-exp(-0.001b) - (2exp(-0.001sqrt(k))))*((1.0 - (5.0e-7k*(m^-1)))*(5.0e-7c*k*(m^-2) - (0.001k*(m^-1))) + (5.0e-7c*k*(m^-2) - (0.001k*(m^-1)))*(1.0 + 5.0e-7(c^2)*(m^-2) - (0.001c*(m^-1)) - (5.0e-7k*(m^-1)))) + (exp(-0.001sqrt(k))^2 + 2exp(-0.001b)*exp(-0.001sqrt(k)))*(5.0e-7c*k*(m^-2) - (0.001k*(m^-1))) + ((0.001 - (5.0e-7c*(m^-1)))*(5.0e-7c*k*(m^-2) - (0.001k*(m^-1))) + (1.0 - (5.0e-7k*(m^-1)))^2)*(5.0e-7c*k*(m^-2) - (0.001k*(m^-1))) + ((1.0 - (5.0e-7k*(m^-1)))*(5.0e-7c*k*(m^-2) - (0.001k*(m^-1))) + (5.0e-7c*k*(m^-2) - (0.001k*(m^-1)))*(1.0 + 5.0e-7(c^2)*(m^-2) - (0.001c*(m^-1)) - (5.0e-7k*(m^-1))))*(1.0 + 5.0e-7(c^2)*(m^-2) - (0.001c*(m^-1)) - (5.0e-7k*(m^-1))))*((1.0e-6 - (5.0e-10b) - (5.0e-10c*(m^-1)))^-1)) - (exp(-0.001b)*(exp(-0.001sqrt(k))^2)))*((1.0e-9 + 2.5e-16(b^2) + 0.001(0.001 - (5.0e-7c*(m^-1)))*(0.001 - (5.0e-7b) - (5.0e-7c*(m^-1))) - (5.0e-13b) - (2.5e-16k*(m^-1)) - (5.0e-10(0.001(0.001 - (5.0e-7b) - (5.0e-7c*(m^-1)))*(1 + 5.0e-7(b^2) - (0.001b)) + 0.001(0.001 - (5.0e-7b) - (5.0e-7c*(m^-1)))*(1.0 + 5.0e-7(c^2)*(m^-2) - (0.001c*(m^-1)) - (5.0e-7k*(m^-1))) + 2.5e-16c*k*(m^-2) - (5.0e-13k*(m^-1)))*((1.0e-6 - (5.0e-10b) - (5.0e-10c*(m^-1)))^-1)))^-1)
-    #     Ldsp = symbolics2sym(Ld1)
-    #     symbolicsval = Symbolics.substitute(Ld1, Dict(b=>1.0, k=>3.0, c=>5.0, m=>7.0))
 
-    #     @vars s m k c b d a
-    #     for (sym,val) in [(b,1.0), (k,3.0), (c,5.0), (m,7.0)]
-    #         Ldsp = SymPy.subs(Ldsp, (sym, val))
-    #     end
-    #     @test float(Ldsp) ≈ symbolicsval.val rtol=1e-6
-    # end
+    @testset "Symbolics: Sym -> tf and vice versa" begin
+        @info "Symbolics: Testing Sym -> tf and vice versa"
+
+        Symbolics.@variables a b c s z
+        @test_both_symb tf([a], [b, c])  a/(b*s + c)
+        @test_both_symb tf([a], [b, c], 0.1)  a/(b*z + c)
+
+        @test_both_symb tf([a], [b, c, 1])  a/(b*s^2 + c*s + 1)
+        @test_both_symb tf([a], [b, c, 1], 0.1)  a/(b*z^2 + c*z + 1)
+
+        # Test that denominator is still monic
+        @test string(Num(tf([a], [1, c, b]))) == string(a/(s^2 + c*s + b))
+        @test string(Num(tf([a], [1, c, b], 0.1))) == string(a/(z^2 + c*z + b))
+
+
+        # Test that denominator is still monic
+        @test string(Num(tf([b, a], [1, c, 1]))) == string((b*s + a)/(s^2 + c*s + 1))
+        @test string(Num(tf([b, a], [1, c, 1], 0.1))) == string((b*z + a)/(z^2 + c*z + 1))
+
+
+        # Test that denominator is still monic
+        @test_both_symb tf([a], [1, c, b])  a/(s^2 + c*s + b)
+        @test_both_symb tf([a], [1, c, b], 0.1)  a/(z^2 + c*z + b)
+
+
+        # Test that denominator is still monic
+        @test_both_symb tf([b, a], [1, c, 1])  (b*s + a)/(s^2 + c*s + 1)
+        @test_both_symb tf([b, a], [1, c, 1], 0.1)  (b*z + a)/(z^2 + c*z + 1)
+        
+    end
+
+    @testset "conversion between SymPy and Symbolics" begin
+        @info "Testing conversion between SymPy and Symbolics"
+
+        Gsymbolcs = let
+            Symbolics.@variables a b c s
+            tf([a], [b, c])
+        end
+        Gsympy = let
+            @vars a b c s
+            tf([a], [b, c])
+        end
+
+        @test Gsymbolcs == tf(Num(Gsympy))
+        @test Symbolics.symbolics_to_sympy(Num(Gsymbolcs)) == Sym(Gsympy)
+    end
 end

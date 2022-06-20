@@ -2,7 +2,8 @@ __precompile__(false)
 module SymbolicControlSystems
 using LinearAlgebra
 using ControlSystems, SymPy, Latexify
-import Symbolics
+import Symbolics as Symb
+import Symbolics: Num
 using InteractiveUtils
 
 export sp,
@@ -23,6 +24,8 @@ export sp,
 const sp = SymPy.PyCall.PyNULL()
 const s = SymPy.Sym("s")
 const z = SymPy.Sym("z")
+
+const NumOrDiv = Union{Num, Symb.SymbolicUtils.Div}
 
 
 function __init__()
@@ -47,6 +50,21 @@ function SymPy.Sym(sys::TransferFunction)
     else
         ssys = sp.Poly(numvec(sys)[], s) / sp.Poly(denvec(sys)[], s)
     end
+end
+
+function Num(sys::StateSpace{<:Any,Num})
+    A, B, C, D = ControlSystems.ssdata(sys)
+    λ = isdiscrete(sys) ? Symb.@variables(z) : Symb.@variables(s)
+    λ = λ[]
+    Symb.simplify((C*inv(λ * I(size(A, 1)) - A)*B+D)[1])
+end
+
+function Num(sys::TransferFunction)
+    λ = isdiscrete(sys) ? Symb.@variables(z) : Symb.@variables(s)
+    λ = λ[]
+    num = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(numvec(sys)[]))) |> Symb.simplify
+    den = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(denvec(sys)[]))) |> Symb.simplify
+    Symb.simplify(num/den)
 end
 
 """
@@ -75,6 +93,15 @@ function expand_coeffs(n, var; numeric = false)
 end
 expand_coeffs(n::Real, args...; numeric = false) = n
 
+function ControlSystems.tf(sys::NumOrDiv, h = nothing)
+    sp = Symb.symbolics_to_sympy(sys)
+    G = tf(sp, h)
+    tf(Num.(numvec(G)[]), Num.(denvec(G)[]), G.timeevol)
+end
+
+Base.:(==)(s1::TransferFunction{<:Any,<:ControlSystems.SisoTf{Num}}, s2::TransferFunction{<:Any,<:ControlSystems.SisoTf{<:NumOrDiv}}) = isequal(Num(s1), Num(s2))
+
+Base.promote_op(::typeof(/),::Type{NumOrDiv},::Type{NumOrDiv}) = Num # This is required to make conversion to ss work. Arithmetic operaitons on Num are super type unstable so inference fails https://github.com/JuliaSymbolics/Symbolics.jl/issues/626
 
 function ControlSystems.minreal(sys::TransferFunction{<:Any,<:ControlSystems.SisoTf{<:Sym}})
     Sym(sys) |> simplify |> tf
@@ -85,37 +112,20 @@ function ControlSystems.tf(sys::StateSpace{<:Any,Sym})
     tf(simplify(n / p))
 end
 
-function Symbolics.Num(sys::StateSpace{<:Any,Symbolics.Num})
-    A,B,C,D = ssdata(sys)
-    if isdiscrete(sys)
-        sz = Symbolics.@variables z
-    else
-        sz = Symbolics.@variables s
+
+function ControlSystems.minreal(sys::StateSpace{<:Any,NumOrDiv})
+    # sys |> Symb.Num .|> Symb.symbolics_to_sympy .|> sp.simplify
+    nsys = Num(sys)
+    nsys = Symb.simplify.(nsys)
+    nsys = Symb.simplify_fractions.(nsys)
+end
+
+function Num(x::Sym)
+    try
+        return Float64(x)
+    catch
+        Symb.Num(Symb.variable(Symbol(x); T=Real))
     end
-    sz = only(sz)
-    ex = (C*inv(sz * I(size(A, 1)) - A)*B + D)
-    # if length(ex) == 1
-    #     return ex[1] # don't do this as this complicates later function building
-    # else
-    #     return ex
-    # end
-    # ex = Symbolics.expand(ex)
-    # ds = Symbolics.degree(ex, sz)
-    # Symbolics.get_variables(ex)
-    # Symbolics.polynormalize(ex)
-end
-
-function ControlSystems.tf(sys::StateSpace{<:Any,Symbolics.Num})
-    n, p = simplify.(sp.Poly.(simplify.(sp.fraction(simplify(Sym(sys)))), s))
-    tf(simplify(n / p))
-end
-
-
-function ControlSystems.minreal(sys::StateSpace{<:Any,Symbolics.Num})
-    # sys |> Symbolics.Num .|> Symbolics.symbolics_to_sympy .|> sp.simplify
-    nsys = Symbolics.Num(sys)
-    nsys = Symbolics.simplify.(nsys)
-    nsys = Symbolics.simplify_fractions.(nsys)
 end
 
 
