@@ -131,6 +131,24 @@ end
 
 sym2num(P::TransferFunction, args...) = sym2num(Sym(P), args...)
 
+function numeric(x::Sym, pairs::Pair...)
+    for (sym, val) in pairs
+        x = subs(x, (sym, val))
+    end
+    float(x)
+end
+
+"""
+    sym2num(P::AbstractStateSpace, pairs::Pair...)
+
+For statespace systems, `sym2num` does not take the sample time `h`.
+"""
+function sym2num(P::AbstractStateSpace, pairs::Pair...)
+    A,B,C,D = ssdata(P)
+    A,B,C,D = (numeric.(x, pairs...) for x in (A,B,C,D))
+    ss(A,B,C,D,P.timeevol)
+end
+
 """
     sym2num(G, h::Real, pairs::Pair...)
 
@@ -309,10 +327,10 @@ double transfer_function(double ui$(var_str)) {
 end
 
 function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfer_function")
-    sys.nu == 1 || throw(ArgumentError("Multiple input not yet supported"))
     nx = sys.nx
+    nu = sys.nu
     ny = sys.ny
-    u = Sym("u")
+    u = nu == 1 ? Sym("u") : [Sym("u[$(i-1)]") for i = 1:nu]
     x = [Sym("x[$(i-1)]") for i = 1:nx]
     # @show P
     if ControlSystems.numeric_type(sys) <: SymPy.Sym
@@ -334,10 +352,12 @@ function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfe
     @show y = mul!(y, sys.C, x) + sys.D * u
     # @show y = sp.collect.(y, x)
 
+    u_str = nu == 1 ? "double u" : "double *u"
+
     code = """
 #include <stdio.h>\n
 #include <math.h>\n
-void $(function_name)(double *y, double u$(var_str)) {
+void $(function_name)(double *y, $(u_str)$(var_str)) {
     static double x[$(nx)] = {0};  // Current state
     double xp[$(nx)] = {0};        // Next state
     int i;
