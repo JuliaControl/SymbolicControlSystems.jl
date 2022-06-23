@@ -182,6 +182,18 @@ end
             end
         end
 
+        function c_lsim_ss_multiinput(u, T, d, w)
+            y = zeros(1)
+            Y = Libc.Libdl.dlopen(outname) do lib
+                fn = Libc.Libdl.dlsym(lib, :transfer_function)
+                map(eachcol(u)) do u
+                    @ccall $(fn)(y::Ref{Cdouble}, u::Ref{Cdouble}, T::Float64, d::Float64, w::Float64)::Cvoid
+                    y[]
+                end
+            end
+            Y'
+        end
+
         function c_lsim_ss(u)
             Y = Libc.Libdl.dlopen(outname) do lib
                 fn = Libc.Libdl.dlsym(lib, :transfer_function)
@@ -213,6 +225,22 @@ end
         y_,_ = lsim(c2d(ss(G_), h, :tustin), u);
         @test norm(y-y_)/norm(y_) < 1e-10 # TODO: figure out why this is more sensitive
 
+        ## Multiple inputs
+        @vars w T d # Define symbolic variables
+        h = 0.01
+        G = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
+        Gd = tustin(G, h) # Discretize 
+        Gd = [Gd 2Gd]
+        u = randn(2,1000); # Random input signal 
+        T_, d_, w_ = 0.03, 0.2, 2.0 # Define system parameters            
+
+        code = SymbolicControlSystems.ccode(ss(Gd), cse=true)
+        write(joinpath(path, filename), code)
+        run(`gcc $filename -lm -shared -o $outname`)
+        y = c_lsim_ss_multiinput( u,  T_,  d_,  w_); # Filter u through the 
+        Gd_ = sym2num(ss(Gd), Pair.((T, d, w), (T_, d_, w_))...) # Replace symbols with numeric constants
+        y_,_ = lsim(ss(Gd_), u);
+        @test norm(y-y_)/norm(y_) < 1e-10 # TODO: figure out why this is more sensitive
 
 
         # test without symbols
