@@ -112,11 +112,11 @@ NOTE: The usual caveats for transfer-function filtering applies. High-order tran
 
 ### C-code for gain scheduled systems
 The following example writes C-code that interpolates between two linear systems.
-The interpolation vector `t` defines the interpolation point.
+The interpolation vector `t` defines the interpolation points.
 
 The system in the example is a double-mass-spring damper, where the inertia of the load is allowed to vary:
 
-```
+```julia
 function double_mass_model(Jl) # Inertia load
     Jm = 1  # Intertia motor
     k = 100 # Spring constant
