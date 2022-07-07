@@ -261,6 +261,7 @@ Return a string with C-code for filtering a signal `u` through `G`.
 - `cse`: Perform common subexpression elimination. This generally improvems the performance of the generated code.
 """
 function ccode(G::TransferFunction; simplify = identity, cse = true)
+    (G.nu == 1 && G.ny == 1) || throw(ArgumentError("C-code generation for transfer functions does not support multiple inputs or outputs, convert the transfer function to a statespace system using ss(G) and call ccode on that instead."))
     P = Sym(G)
     P.has(z) || error("Did not find `z` in symbolic expression")
     P.has(s) && error("Found `s` in symbolic expression, provide expression in `z`")
@@ -348,8 +349,8 @@ function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfe
     end
     x1 = zeros(Sym, nx) # workaround for strange bug with undefinied referece appearing in Pluto only
     y = zeros(Sym, ny)
-    @show x1 = mul!(x1, sys.A, x) + sys.B * u
-    @show y = mul!(y, sys.C, x) + sys.D * u
+    x1 = mul!(x1, sys.A, x) + sys.B * u
+    y = mul!(y, sys.C, x) + sys.D * u
     # @show y = sp.collect.(y, x)
 
     u_str = nu == 1 ? "double u" : "double *u"
@@ -367,6 +368,7 @@ void $(function_name)(double *y, $(u_str)$(var_str)) {
         subex, final = sp.cse([x1; y])
         x1 = final[][1:length(x1)]
         y = final[][length(x1)+1:end]
+        code *= "\n    // Common sub expressions. These are all called xi, but are unrelated to the state x\n"
         for se in subex
             code *= "    double $(se[1]) = $(sp.ccode(se[2]));\n"
         end
