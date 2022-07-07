@@ -110,3 +110,35 @@ plot([u; y; y_]', lab=["u" "y c-code" "y julia"]) |> display
 ```
 
 NOTE: The usual caveats for transfer-function filtering applies. High-order transfer functions might cause numerical problems. Consider either filtering through many smaller transfer function in series, or convert the system into a well-balanced statespace system and generate code for this instead. See [lecture notes](http://www.control.lth.se/fileadmin/control/Education/EngineeringProgram/FRTN01/lectures/L11_slides6.pdf) slide 45 and onwards as well as the [ControlSystems docs on numerical accuracy.](https://juliacontrol.github.io/ControlSystems.jl/latest/man/numerical/#Performance-considerations). The function `ControlSystems.ss` converts a transfer function to a statespace system and performs automatic balancing. 
+
+
+### C-code for gain scheduled systems
+The following example writes C-code that interpolates between two linear systems.
+The interpolation vector `t` defines the interpolation points.
+
+The system in the example is a double-mass-spring damper, where the inertia of the load is allowed to vary:
+
+```julia
+function double_mass_model(Jl) # Inertia load
+    Jm = 1  # Intertia motor
+    k = 100 # Spring constant
+    c0 = 1  # Dampings
+    c1 = 1
+    c2 = 1
+    A = [
+        0.0 1 0 0
+        -k/Jm -(c1 + c0)/Jm k/Jm c1/Jm
+        0 0 0 1
+        k/Jl c1/Jl -k/Jl -(c1 + c2)/Jl
+    ]
+    B = [0, 1/Jm, 0, 0]
+    C = [1 0 0 0]
+    ss(A,B,C,0)
+end
+
+t = [1, 5] # The different inertias in the interpolation
+sys = [c2d(double_mass_model(inertia), 0.01) for inertia in t]
+SymbolicControlSystems.print_c_array(stdout, sys, t, "mass_spring_damper")
+```
+
+This will print C-code functions for the interpolation of each of the system matrices. See the docstring for `print_c_array` for more customization options.
