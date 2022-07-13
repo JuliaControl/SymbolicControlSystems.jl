@@ -1,7 +1,7 @@
 name = "SymbolicControlSystems"
 uuid = "886cb795-8fd3-4b11-92f6-8071e46f71c5"
 authors = ["Fredrik Bagge Carlson"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 ControlSystems = "a6e380b2-a6ca-5380-bf3e-84a91bcd477e"
@@ -12,7 +12,7 @@ SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
-ControlSystems = "0.12"
+ControlSystems = "1"
 Latexify = "0.14, 0.15"
 Symbolics = "4.4"
 SymPy = "1"
