@@ -37,10 +37,15 @@ end
 
 function SymPy.Sym(sys::StateSpace{<:Any,Sym})
     A, B, C, D = ControlSystems.ssdata(sys)
-    if isdiscrete(sys)
-        (C*inv(z * I(size(A, 1)) - A)*B+D)[1]
+    expr = if isdiscrete(sys)
+        (C*inv(z * I(size(A, 1)) - A)*B+D)
     else
-        (C*inv(s * I(size(A, 1)) - A)*B+D)[1]
+        (C*inv(s * I(size(A, 1)) - A)*B+D)
+    end
+    if size(expr) == (1,1)
+        return expr[]
+    else
+        return expr
     end
 end
 
@@ -56,7 +61,11 @@ function Num(sys::StateSpace{<:Any,Num})
     A, B, C, D = ControlSystems.ssdata(sys)
     λ = isdiscrete(sys) ? Symb.@variables(z) : Symb.@variables(s)
     λ = λ[]
-    Symb.simplify((C*inv(λ * I(size(A, 1)) - A)*B+D)[1])
+    ex = (C*inv(λ * I(size(A, 1)) - A)*B+D)[1]
+    if sys.nx < 4
+        ex = Symb.simplify(ex)
+    end
+    ex
 end
 
 function Num(sys::TransferFunction)
@@ -118,6 +127,12 @@ function ControlSystems.minreal(sys::StateSpace{<:Any,NumOrDiv})
     nsys = Num(sys)
     nsys = Symb.simplify.(nsys)
     nsys = Symb.simplify_fractions.(nsys)
+end
+
+function ControlSystems.minreal(sys::StateSpace{<:Any,Sym})
+    # sys |> Symb.Num .|> Symb.symbolics_to_sympy .|> sp.simplify
+    nsys = Sym(sys)
+    nsys = sp.simplify.(nsys)
 end
 
 function Num(x::Sym)

@@ -1,7 +1,7 @@
 name = "SymbolicControlSystems"
 uuid = "886cb795-8fd3-4b11-92f6-8071e46f71c5"
 authors = ["Fredrik Bagge Carlson"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 ControlSystems = "a6e380b2-a6ca-5380-bf3e-84a91bcd477e"
