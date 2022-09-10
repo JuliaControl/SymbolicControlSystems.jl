@@ -7,14 +7,21 @@ Utilities for
 
 This package exports the names `s,z` of type `SymPy.Sym` for the Laplace and Z-transform variables. These can be used to build symbolic transfer functions. To build symbolic transfer functions with Symbolics.jl symbols, create `s` or `z` using `using Symbolics; @variables s`.
 
+## Installation
+Users typically want to install both ControlSystemsBase and SymbolicControlSystems. ControlSystemsBase contains the basic control-systems functionality, like system types etc., that is used when working with SymbolicControlSystems.
+```julia
+using Pkg
+Pkg.add(["ControlSystemsBase", "SymbolicControlSystems"])
+```
+
 ## Usage examples
 ```julia
-julia> using ControlSystems, SymbolicControlSystems
+julia> using ControlSystemsBase, SymbolicControlSystems
 
 julia> @vars w T d # Define (SymPy) symbolic variables
 (w, T, d)
 
-julia> h = 0.01;
+julia> h = 0.01; # Sample time
 
 julia> G = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
 TransferFunction{Continuous, SisoRational{Sym}}
@@ -78,8 +85,8 @@ A usage example follows
 ```julia
 using ControlSystems, SymbolicControlSystems
 
-@vars w T d # Define symbolic variables
-h        = 0.01
+@vars w T d      # Define symbolic variables
+h        = 0.01  # Sample time
 G        = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
 Gd       = tustin(G, h) # Discretize
 code     = SymbolicControlSystems.ccode(Gd, cse=true)

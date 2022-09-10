@@ -1,7 +1,7 @@
 __precompile__(false)
 module SymbolicControlSystems
 using LinearAlgebra
-using ControlSystems, SymPy, Latexify
+using ControlSystemsBase, SymPy, Latexify
 import Symbolics as Symb
 import Symbolics: Num
 using InteractiveUtils
@@ -36,7 +36,7 @@ end
 
 
 function SymPy.Sym(sys::StateSpace{<:Any,Sym})
-    A, B, C, D = ControlSystems.ssdata(sys)
+    A, B, C, D = ControlSystemsBase.ssdata(sys)
     expr = if isdiscrete(sys)
         (C*inv(z * I(size(A, 1)) - A)*B+D)
     else
@@ -58,7 +58,7 @@ function SymPy.Sym(sys::TransferFunction)
 end
 
 function Num(sys::StateSpace{<:Any,Num})
-    A, B, C, D = ControlSystems.ssdata(sys)
+    A, B, C, D = ControlSystemsBase.ssdata(sys)
     λ = isdiscrete(sys) ? Symb.@variables(z) : Symb.@variables(s)
     λ = λ[]
     ex = (C*inv(λ * I(size(A, 1)) - A)*B+D)[1]
@@ -77,11 +77,11 @@ function Num(sys::TransferFunction)
 end
 
 """
-    ControlSystems.tf(sys::Sym, h = nothing)
+    ControlSystemsBase.tf(sys::Sym, h = nothing)
 
 Convert a symbolic, rational expression into a transfer function. `h` denotes the sample time if the system is discrete.
 """
-function ControlSystems.tf(sys::Sym, h = nothing)
+function ControlSystemsBase.tf(sys::Sym, h = nothing)
     n, d = sp.fraction(sys)
     d = sp.Poly(d)
     # d = d.monic() # Don't do this here
@@ -102,34 +102,34 @@ function expand_coeffs(n, var; numeric = false)
 end
 expand_coeffs(n::Real, args...; numeric = false) = n
 
-function ControlSystems.tf(sys::NumOrDiv, h = nothing)
+function ControlSystemsBase.tf(sys::NumOrDiv, h = nothing)
     sp = Symb.symbolics_to_sympy(sys)
     G = tf(sp, h)
     tf(Num.(numvec(G)[]), Num.(denvec(G)[]), G.timeevol)
 end
 
-Base.:(==)(s1::TransferFunction{<:Any,<:ControlSystems.SisoTf{Num}}, s2::TransferFunction{<:Any,<:ControlSystems.SisoTf{<:NumOrDiv}}) = isequal(Num(s1), Num(s2))
+Base.:(==)(s1::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{Num}}, s2::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{<:NumOrDiv}}) = isequal(Num(s1), Num(s2))
 
 Base.promote_op(::typeof(/),::Type{NumOrDiv},::Type{NumOrDiv}) = Num # This is required to make conversion to ss work. Arithmetic operaitons on Num are super type unstable so inference fails https://github.com/JuliaSymbolics/Symbolics.jl/issues/626
 
-function ControlSystems.minreal(sys::TransferFunction{<:Any,<:ControlSystems.SisoTf{<:Sym}})
+function ControlSystemsBase.minreal(sys::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{<:Sym}})
     Sym(sys) |> simplify |> tf
 end
 
-function ControlSystems.tf(sys::StateSpace{<:Any,Sym})
+function ControlSystemsBase.tf(sys::StateSpace{<:Any,Sym})
     n, p = simplify.(sp.Poly.(simplify.(sp.fraction(simplify(Sym(sys)))), s))
     tf(simplify(n / p))
 end
 
 
-function ControlSystems.minreal(sys::StateSpace{<:Any,NumOrDiv})
+function ControlSystemsBase.minreal(sys::StateSpace{<:Any,NumOrDiv})
     # sys |> Symb.Num .|> Symb.symbolics_to_sympy .|> sp.simplify
     nsys = Num(sys)
     nsys = Symb.simplify.(nsys)
     nsys = Symb.simplify_fractions.(nsys)
 end
 
-function ControlSystems.minreal(sys::StateSpace{<:Any,Sym})
+function ControlSystemsBase.minreal(sys::StateSpace{<:Any,Sym})
     # sys |> Symb.Num .|> Symb.symbolics_to_sympy .|> sp.simplify
     nsys = Sym(sys)
     nsys = sp.simplify.(nsys)
@@ -349,7 +349,7 @@ function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfe
     u = nu == 1 ? Sym("u") : [Sym("u[$(i-1)]") for i = 1:nu]
     x = [Sym("x[$(i-1)]") for i = 1:nx]
     # @show P
-    if ControlSystems.numeric_type(sys) <: SymPy.Sym
+    if ControlSystemsBase.numeric_type(sys) <: SymPy.Sym
         P = Sym(sys)
         vars = P.free_symbols
         vars.remove(z)
