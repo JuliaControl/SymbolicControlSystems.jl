@@ -97,9 +97,9 @@ version = "0.1.4"
 
 [[CPUSummary]]
 deps = ["CpuId", "IfElse", "Static"]
-git-tree-sha1 = "8a43595f7b3f7d6dd1e07ad9b94081e1975df4af"
+git-tree-sha1 = "9bdd5aceea9fa109073ace6b430a24839d79315e"
 uuid = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
-version = "0.1.25"
+version = "0.1.27"
 
 [[Calculus]]
 deps = ["LinearAlgebra"]
@@ -109,9 +109,9 @@ version = "0.5.1"
 
 [[ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "8a494fe0c4ae21047f28eb48ac968f0b8a6fcaa7"
+git-tree-sha1 = "dc4405cee4b2fe9e1108caec2d760b7ea758eca2"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.15.4"
+version = "1.15.5"
 
 [[ChangesOfVariables]]
 deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
@@ -181,7 +181,7 @@ version = "1.4.1"
 
 [[ControlSystemsBase]]
 deps = ["DSP", "ForwardDiff", "IterTools", "LaTeXStrings", "LinearAlgebra", "MacroTools", "MatrixEquations", "MatrixPencils", "Polyester", "Polynomials", "Printf", "Random", "RecipesBase", "SparseArrays", "StaticArrays", "UUIDs"]
-path = "/home/fredrikb/.julia/dev/ControlSystems/lib/ControlSystemsBase/"
+git-tree-sha1 = "b9cace1d9774d8fb4ddc98bb2ae1c5516e1ab8fb"
 uuid = "aaaaaaaa-a6ca-5380-bf3e-84a91bcd477e"
 version = "1.0.0"
 
@@ -635,9 +635,9 @@ version = "0.6.15"
 
 [[PolyesterWeave]]
 deps = ["BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "Static", "ThreadingUtilities"]
-git-tree-sha1 = "233feae14c07cca6b95080f77a7d332612603f6a"
+git-tree-sha1 = "b42fb2292fbbaed36f25d33a15c8cc0b4f287fcf"
 uuid = "1d0040c9-8b98-4ee7-8388-3f51789ca0ad"
-version = "0.1.9"
+version = "0.1.10"
 
 [[Polynomials]]
 deps = ["LinearAlgebra", "RecipesBase"]
@@ -647,9 +647,9 @@ version = "3.2.0"
 
 [[PreallocationTools]]
 deps = ["Adapt", "ArrayInterfaceCore", "ForwardDiff", "ReverseDiff"]
-git-tree-sha1 = "5c076a409ec8d2a86d3685a7e4fed330cd489889"
+git-tree-sha1 = "ebe90ecfb31f1781a6da31a986036896e5847fb8"
 uuid = "d236fae5-4411-538c-8e31-a6e3d9e00b46"
-version = "0.4.2"
+version = "0.4.3"
 
 [[Preferences]]
 deps = ["TOML"]
@@ -756,9 +756,9 @@ version = "0.1.0"
 
 [[SciMLBase]]
 deps = ["ArrayInterfaceCore", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "RecipesBase", "RecursiveArrayTools", "StaticArraysCore", "Statistics", "Tables"]
-git-tree-sha1 = "e30c2f8bd32b2d1ba73f1a0044827645d2439fdc"
+git-tree-sha1 = "ea841731365b36e5d05e79259136478337c3a484"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "1.53.2"
+version = "1.54.1"
 
 [[Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
