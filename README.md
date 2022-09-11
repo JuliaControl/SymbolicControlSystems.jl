@@ -116,7 +116,8 @@ y_,_ = lsim(ss(Gd_), u); # Filter using Julia
 plot([u; y; y_]', lab=["u" "y c-code" "y julia"]) |> display
 ```
 
-NOTE: The usual caveats for transfer-function filtering applies. High-order transfer functions might cause numerical problems. Consider either filtering through many smaller transfer function in series, or convert the system into a well-balanced statespace system and generate code for this instead. See [lecture notes](http://www.control.lth.se/fileadmin/control/Education/EngineeringProgram/FRTN01/lectures/L11_slides6.pdf) slide 45 and onwards as well as the [ControlSystems docs on numerical accuracy.](https://juliacontrol.github.io/ControlSystems.jl/latest/man/numerical/#Performance-considerations). The function `ControlSystems.ss` converts a transfer function to a statespace system and performs automatic balancing. 
+**NOTE:** Numerical accuracy
+> The usual caveats for transfer-function filtering applies. High-order transfer functions might cause numerical problems. Consider either filtering through many smaller transfer function in series, or convert the system into a well-balanced statespace system and generate code for this instead. See [lecture notes](http://www.control.lth.se/fileadmin/control/Education/EngineeringProgram/FRTN01/lectures/L11_slides6.pdf) slide 45 and onwards as well as the [ControlSystems docs on numerical accuracy.](https://juliacontrol.github.io/ControlSystems.jl/latest/man/numerical/#Performance-considerations). The function `ControlSystems.ss` converts a transfer function to a statespace system and performs automatic balancing. 
 
 
 ### C-code for gain scheduled systems
@@ -127,7 +128,7 @@ The system in the example is a double-mass-spring damper, where the inertia of t
 
 ```julia
 function double_mass_model(Jl) # Inertia load
-    Jm = 1  # Intertia motor
+    Jm = 1  # Inertia motor
     k = 100 # Spring constant
     c0 = 1  # Dampings
     c1 = 1
