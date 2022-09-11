@@ -1,6 +1,6 @@
 using SymbolicControlSystems
 using Test
-using ControlSystems
+using ControlSystemsBase
 s = SymbolicControlSystems.s
 z = SymbolicControlSystems.z
 import Symbolics
@@ -58,7 +58,7 @@ end
         @test SymbolicControlSystems.expand_coeffs(pol, z) == [2,0,4,0]
 
         @vars ω0
-        sys = ControlSystems.DemoSystems.resonant(;ω0)
+        sys = ControlSystemsBase.DemoSystems.resonant(;ω0)
         ssys = Sym(sys)
         n, d = sp.fraction(simplify(ssys))
         @test SymbolicControlSystems.expand_coeffs(n, s) == [1.0*ω0^3]
