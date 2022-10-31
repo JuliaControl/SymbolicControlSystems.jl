@@ -83,7 +83,7 @@ Code generation for systems with multiple inputs and outputs (MIMO) is only hand
 
 A usage example follows
 ```julia
-using ControlSystems, SymbolicControlSystems
+using ControlSystemsBase, SymbolicControlSystems
 
 @vars w T d      # Define symbolic variables
 h        = 0.01  # Sample time
@@ -112,8 +112,11 @@ T_, d_, w_ = 0.03, 0.2, 2.0 # Define system parameters
 y    = c_lsim( u,  T_,  d_,  w_); # Filter u through the C-function filter
 Gd_  = sym2num(Gd, h, Pair.((T, d, w), (T_, d_, w_))...) # Replace symbols with numeric constants
 y_,_ = lsim(ss(Gd_), u); # Filter using Julia
+
+using Plots, LinearAlgebra, Test
 @test norm(y-y_)/norm(y_) < 1e-10
-plot([u; y; y_]', lab=["u" "y c-code" "y julia"]) |> display
+plot(u', lab="u", layout=2)
+plot!([y; y_]', lab=["y c-code" "y julia"], sp=2, linestyle=[:solid :dash]) |> display
 ```
 
 **NOTE:** Numerical accuracy
