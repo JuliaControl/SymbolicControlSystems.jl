@@ -692,7 +692,11 @@ function print_c_array(
     print_c_array(io, t, ivecname; cse, s, struct_name)
     for p in (:A, :B, :C, :D)
         A = getproperty.(sys, p)
-        print_c_array(io, A, t, name * "_" * string(p) * en; cse, s, print_vector = false, struct_name, struct_type, ivecname)
+        if allequal(A)
+            print_c_array(io, A[1], name * "_" * string(p) * en; cse, s, struct_name)
+        else
+            print_c_array(io, A, t, name * "_" * string(p) * en; cse, s, print_vector = false, struct_name, struct_type, ivecname)
+        end
     end
 end
 
