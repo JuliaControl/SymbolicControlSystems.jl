@@ -273,7 +273,7 @@ Return a string with C-code for filtering a signal `u` through `G`.
 # Arguments:
 - `G`: A linear system
 - `simplify`: A function for symbolic simplification. You may try `Sympy.simplify`, but for large systems, this will take a long time to compute.
-- `cse`: Perform common subexpression elimination. This generally improvems the performance of the generated code.
+- `cse`: Perform common subexpression elimination. This generally improves the performance of the generated code.
 """
 function ccode(G::TransferFunction; simplify = identity, cse = true)
     (G.nu == 1 && G.ny == 1) || throw(ArgumentError("C-code generation for transfer functions does not support multiple inputs or outputs, convert the transfer function to a statespace system using ss(G) and call ccode on that instead."))
