@@ -25,7 +25,7 @@ const sp = SymPy.PyCall.PyNULL()
 const s = SymPy.Sym("s")
 const z = SymPy.Sym("z")
 
-const NumOrDiv = Union{Num, Symb.SymbolicUtils.Div}
+const NumOrDiv = Union{Num, Symb.SymbolicUtils.Div, Symb.SymbolicUtils.BasicSymbolic}
 
 
 function __init__()
