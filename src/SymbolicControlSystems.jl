@@ -270,6 +270,12 @@ end
 
 Return a string with C-code for filtering a signal `u` through `G`. 
 
+If `G` is a transfer function, the system must be SISO, for MIMO systems, use a `StateSpace` model instead.
+
+With a transfer function as input, the code will return a double corresponding to the single output. With a StateSpace model as input, the code will produce a function that takes a double pointer `double *y` as the first input argument. Make sure that `y` points to an array of length `G.ny` before calling the function.
+
+The state is internally handled by C `static` variables, so the generated code is thus stateful. 
+
 # Arguments:
 - `G`: A linear system
 - `simplify`: A function for symbolic simplification. You may try `Sympy.simplify`, but for large systems, this will take a long time to compute.
