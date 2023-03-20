@@ -281,7 +281,8 @@ The state is internally handled by C `static` variables, so the generated code i
 - `simplify`: A function for symbolic simplification. You may try `Sympy.simplify`, but for large systems, this will take a long time to compute.
 - `cse`: Perform common subexpression elimination. This generally improves the performance of the generated code.
 """
-function ccode(G::TransferFunction; simplify = identity, cse = true)
+function ccode(G::TransferFunction; simplify = identity, cse = true, static=true, double=true)
+    numT = double ? "double" : "float"
     (G.nu == 1 && G.ny == 1) || throw(ArgumentError("C-code generation for transfer functions does not support multiple inputs or outputs, convert the transfer function to a statespace system using ss(G) and call ccode on that instead."))
     P = Sym(G)
     P.has(z) || error("Did not find `z` in symbolic expression")
@@ -299,16 +300,25 @@ function ccode(G::TransferFunction; simplify = identity, cse = true)
     vars = sort(vars, by = string)
     var_str = ""
     for var in vars
-        var_str *= ", double $(var)"
+        var_str *= ", $numT $(var)"
     end
 
     nu, ny = length(n), length(d)
+    decl = if static
+"""
+$numT transfer_function($numT ui$(var_str)) {
+    static $numT u[$(nu)] = {0};
+    static $numT y[$(ny)] = {0};
+"""
+    else
+"""
+$numT transfer_function($numT *u, $numT *y, $numT ui$(var_str)) {
+"""
+    end
     code = """
 #include <stdio.h>\n
 #include <math.h>\n
-double transfer_function(double ui$(var_str)) {
-    static double u[$(nu)] = {0};
-    static double y[$(ny)] = {0};
+$decl
     int i;
     for (i=$(nu-1); i > 0; --i) {
         u[i] = u[i-1];
@@ -328,7 +338,7 @@ double transfer_function(double ui$(var_str)) {
         n = final[1:length(n)]
         d = final[length(n)+1:end]
         for se in subex
-            code *= "    double $(se[1]) = $(sp.ccode(se[2]));\n"
+            code *= "    $numT $(se[1]) = $(sp.ccode(se[2]));\n"
         end
     end
     for (i, n) in enumerate(n)
@@ -348,7 +358,8 @@ double transfer_function(double ui$(var_str)) {
     code
 end
 
-function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfer_function")
+function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfer_function", static=true, double=true)
+    numT = double ? "double" : "float"
     nx = sys.nx
     nu = sys.nu
     ny = sys.ny
@@ -363,7 +374,7 @@ function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfe
         vars = sort(vars, by = string)
         var_str = ""
         for var in vars
-            var_str *= ", double $(var)"
+            var_str *= ", $numT $(var)"
         end
     else
         var_str = ""
@@ -374,14 +385,23 @@ function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfe
     y = mul!(y, sys.C, x) + sys.D * u
     # @show y = sp.collect.(y, x)
 
-    u_str = nu == 1 ? "double u" : "double *u"
+    u_str = nu == 1 ? "$numT u" : "$numT *u"
 
+    decl = if static
+"""
+void $(function_name)($numT *y, $(u_str)$(var_str)) {
+    static $numT x[$(nx)] = {0};  // Current state
+"""
+    else
+"""
+void $(function_name)($numT *x, $numT *y, $(u_str)$(var_str)) {
+"""
+    end
     code = """
 #include <stdio.h>\n
 #include <math.h>\n
-void $(function_name)(double *y, $(u_str)$(var_str)) {
-    static double x[$(nx)] = {0};  // Current state
-    double xp[$(nx)] = {0};        // Next state
+$decl
+    $numT xp[$(nx)] = {0};        // Next state
     int i;
 """
     if cse
@@ -391,7 +411,7 @@ void $(function_name)(double *y, $(u_str)$(var_str)) {
         y = final[][length(x1)+1:end]
         code *= "\n    // Common sub expressions. These are all called xi, but are unrelated to the state x\n"
         for se in subex
-            code *= "    double $(se[1]) = $(sp.ccode(se[2]));\n"
+            code *= "    $numT $(se[1]) = $(sp.ccode(se[2]));\n"
         end
     end
     code *= "\n    // Advance the state xp = Ax + Bu\n"
