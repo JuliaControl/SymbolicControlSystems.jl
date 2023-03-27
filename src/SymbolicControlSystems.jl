@@ -350,6 +350,7 @@ $decl
         code *= "    y[0] += ($(sp.ccode(-n)))*y[$(i)];\n"
     end
     code *= "    return y[0];\n}"
+    code = replace(code, "₊" => "_")
     println(code)
     try
         clipboard(code)
@@ -367,10 +368,7 @@ function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfe
     x = [Sym("x[$(i-1)]") for i = 1:nx]
     # @show P
     if ControlSystemsBase.numeric_type(sys) <: SymPy.Sym
-        P = Sym(sys)
-        vars = P.free_symbols
-        vars.remove(z)
-        vars = collect(vars)
+        vars = reduce(hcat, [collect(M.free_symbols) for M in (sys.A, sys.B, sys.C, sys.D)]) |> unique
         vars = sort(vars, by = string)
         var_str = ""
         for var in vars
@@ -434,7 +432,7 @@ $decl
         }
     """
     code *= "\n}"
-
+    code = replace(code, "₊" => "_")
     println(code)
     try
         clipboard(code)
