@@ -542,14 +542,15 @@ end
 
 print_c_array(a::AbstractArray, args...; kwargs...) =
     print_c_array(stdout, a, args...; kwargs...)
-function print_c_array(io, a::AbstractVector, name = "vec"; cse = false, s = "", struct_name=nothing)
+function print_c_array(io, a::AbstractVector, name = "vec"; cse = false, s = "", struct_name=nothing, double=true)
     l = length(a)
     a = float.(a)
     if cse
         a = write_array_cse(io, a, name, s)
     end
     if struct_name === nothing
-        s == "" && println(io, "double $name[$l];")
+        ty = double ? "double" : "float"
+        s == "" && println(io, "$ty $name[$l];")
         struct_name = ""
     else
         struct_name = struct_name*"->"
@@ -559,14 +560,15 @@ function print_c_array(io, a::AbstractVector, name = "vec"; cse = false, s = "",
     end
     println(io)
 end
-function print_c_array(io, a::AbstractMatrix, name = "mat"; cse = false, s = "", struct_name=nothing)
+function print_c_array(io, a::AbstractMatrix, name = "mat"; cse = false, s = "", struct_name=nothing, double=true)
     r, c = size(a)
     a = float.(a)
     if cse
         a = write_array_cse(io, a, name, s)
     end
     if struct_name === nothing
-        s == "" && println(io, "double $name[$r][$c];")
+        ty = double ? "double" : "float"
+        s == "" && println(io, "$ty $name[$r][$c];")
         struct_name = ""
     else
         struct_name = struct_name*"->"
@@ -577,14 +579,15 @@ function print_c_array(io, a::AbstractMatrix, name = "mat"; cse = false, s = "",
     println(io)
 end
 
-function print_c_array(io, a::AbstractArray{<:Any,3}, name = "array"; cse = false, s = "", struct_name=nothing)
+function print_c_array(io, a::AbstractArray{<:Any,3}, name = "array"; cse = false, s = "", struct_name=nothing, double=true)
     r, c, d = size(a)
     a = float.(a)
     if cse
         a = write_array_cse(io, a, name, s)
     end
     if struct_name === nothing
-        s == "" && println(io, "double $name[$r][$c][$d];")
+        ty = double ? "double" : "float"
+        s == "" && println(io, "$ty $name[$r][$c][$d];")
         struct_name = ""
     else
         struct_name = struct_name*"->"
