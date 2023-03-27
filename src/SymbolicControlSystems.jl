@@ -368,7 +368,7 @@ function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfe
     x = [Sym("x[$(i-1)]") for i = 1:nx]
     # @show P
     if ControlSystemsBase.numeric_type(sys) <: SymPy.Sym
-        vars = reduce(hcat, [collect(M.free_symbols) for M in (sys.A, sys.B, sys.C, sys.D)]) |> unique
+        vars = reduce(vcat, [collect(M.free_symbols) for M in (sys.A, sys.B, sys.C, sys.D)]) |> unique
         vars = sort(vars, by = string)
         var_str = ""
         for var in vars
