@@ -13,7 +13,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
 ControlSystemsBase = "1"
-Latexify = "0.14, 0.15"
+Latexify = "0.14, 0.15, 0.16"
 SymPy = "1"
 Symbolics = "5"
 julia = "1.5"
