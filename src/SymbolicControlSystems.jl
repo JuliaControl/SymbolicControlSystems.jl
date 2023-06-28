@@ -110,7 +110,7 @@ end
 
 Base.:(==)(s1::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{Num}}, s2::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{<:NumOrDiv}}) = isequal(Num(s1), Num(s2))
 
-Base.promote_op(::typeof(/),::Type{NumOrDiv},::Type{NumOrDiv}) = Num # This is required to make conversion to ss work. Arithmetic operaitons on Num are super type unstable so inference fails https://github.com/JuliaSymbolics/Symbolics.jl/issues/626
+Base.promote_op(::typeof(/),::Type{NumOrDiv},::Type{NumOrDiv}) = Num # This is required to make conversion to ss work. Arithmetic operations on Num are super type unstable so inference fails https://github.com/JuliaSymbolics/Symbolics.jl/issues/626
 
 function ControlSystemsBase.minreal(sys::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{<:Sym}})
     Sym(sys) |> simplify |> tf
@@ -377,7 +377,7 @@ function ccode(sys::StateSpace{<:Discrete}; cse = true, function_name = "transfe
     else
         var_str = ""
     end
-    x1 = zeros(Sym, nx) # workaround for strange bug with undefinied referece appearing in Pluto only
+    x1 = zeros(Sym, nx) # workaround for strange bug with undefined reference appearing in Pluto only
     y = zeros(Sym, ny)
     x1 = mul!(x1, sys.A, x) + sys.B * u
     y = mul!(y, sys.C, x) + sys.D * u
