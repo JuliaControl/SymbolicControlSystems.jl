@@ -239,7 +239,7 @@ end
 """
     doubleeuler(sys::AbstractStateSpace{<:Continuous}, Ts)
 
-Discretize `sys` with a second-order approximation to the exponential map (Forward Euler is a first-order approximation). This is useful if the symbolic expressions for the true ZoH-discretization becomes too complicated. A second-order approximation is in many cases indistinguishable from the true ZoH-discretization, but requires a well-balanced state-space realization.
+Discretize `sys` with a second-order approximation to the exponential map (Forward Euler is a first-order approximation). This is useful if the symbolic expressions for the true ZoH-discretization becomes too complicated. A second-order approximation is in some cases close to the true ZoH-discretization, but requires a well-balanced state-space realization. See also [`pade_zoh`](@ref).
 
 # Example
 ```julia
@@ -259,6 +259,45 @@ function doubleeuler(sys::AbstractStateSpace{<:Continuous}, Ts)
     A2 = A*A
     # A3 = A2*A
     M = I + Ts * A + Ts^2 / 2 * A2 #+ Ts^3 / 6 * A3
+    Ad = M[1:nx, 1:nx]
+    Bd = M[1:nx, nx+1:nx+nu]
+    ss(Ad, Bd, C, D, Ts)
+end
+
+function pade_exp(A, p=2, q=2) 
+    n = LinearAlgebra.checksquare(A)
+    N = Matrix{eltype(A)}(0*I(n))
+    D = Matrix{eltype(A)}(0*I(n))
+    for j = 0:p
+        N .+= factorial(p+q-j)*factorial(p) / (factorial(p+q)*factorial(j)*factorial(p-j)) * A^j
+    end
+    for j = 0:q
+        D .+= factorial(p+q-j)*factorial(q) / (factorial(p+q)*factorial(j)*factorial(q-j)) * (-A)^j
+    end
+    D \ N
+end
+
+"""
+    pade_zoh(sys::StateSpace{Continuous}, Ts, p = 2, q = 2)
+
+Discretize `sys` with a Zero-order-Hold discretization where the exponential map is approximated using a `p,q` Padé approximation. This is useful if the symbolic expressions for the true ZoH-discretization becomes too complicated. A `2,2` approximation is usually rather close the the true matrix exponential.
+
+# Example
+```julia
+w = 2pi .* exp10.(LinRange(-1, log10(25), 400))
+sys = ssrand(1,1,4)
+bodeplot(sys, w, lab="cont")
+bodeplot!(c2d(sys, 0.001, :fwdeuler), w, label="fwdeuler")
+bodeplot!(doubleeuler(sys, 0.001), w, label="double euler")
+```
+"""
+function pade_zoh(sys::AbstractStateSpace{<:Continuous}, Ts, p = 2, q = 2)
+    A, B, C, D = ssdata(sys)
+    T = promote_type(eltype.((A, B, C, D))...)
+    ny, nu = size(sys)
+    nx = sys.nx
+    A = [A B; zeros(nu, nx + nu)]
+    M = pade_exp(A, p, q)
     Ad = M[1:nx, 1:nx]
     Bd = M[1:nx, nx+1:nx+nu]
     ss(Ad, Bd, C, D, Ts)
@@ -474,11 +513,11 @@ function monic(n, d)
 end
 
 """
-    latextf(x, mon = true)
+    latextf(x, mon = false)
 
 Return a latex string representing `x`. If `mon`, then the denominator polynomial will be made monic (leading coefficient = 1).
 """
-function latextf(x::Sym, mon = true)
+function latextf(x::Sym, mon = false)
     var = x.has(z) ? z : s
     n, d = sp.fraction(x)
     if mon
