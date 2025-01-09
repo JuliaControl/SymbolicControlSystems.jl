@@ -57,7 +57,7 @@ end
         pol = 2z^3+4*z
         @test SymbolicControlSystems.expand_coeffs(pol, z) == [2,0,4,0]
 
-        @vars ω0
+        @syms ω0
         sys = ControlSystemsBase.DemoSystems.resonant(;ω0)
         ssys = Sym(sys)
         n, d = sp.fraction(simplify(ssys))
@@ -68,7 +68,7 @@ end
     @testset "SymPy: Sym -> tf and vice versa" begin
         @info "SymPy: Testing Sym -> tf and vice versa"
 
-        @vars a b c
+        @syms a b c
         @test_both tf([a], [b, c])  a/(b*s + c)
         @test_both tf([a], [b, c], 0.1)  a/(b*z + c)
 
@@ -99,7 +99,7 @@ end
 
     @testset "sym2num" begin
         @info "Testing sym2num"
-        @vars a b c
+        @syms a b c
         G = tf([a], [b, c]) 
         @test sym2num(G, a=>1, b=>1, c=>1) == tf(1,[1,1])
         @test sym2num(G, a=>1, b=>2, c=>1) == tf(1,[2,1])
@@ -121,15 +121,13 @@ end
         @test sym2num(G, 0.1, a=>1, b=>1, c=>1) == tf([1,1],[1,1,1], 0.1)
         @test sym2num(G, 0.1, a=>1, b=>2, c=>1) == tf([2,1],[1,1,1], 0.1)
         @test sym2num(G, 0.1, a=>1, b=>1, c=>2) == tf([1,1],[1,2,1], 0.1)
-
-        
         
     end
 
     @testset "Tustin and C-code" begin
         @info "Testing Tustin and C-code"
         
-        @vars J c
+        @syms J c
         G = tf(1.,[J^2,c,1])
         Gs = Sym(G)
         Gn = tf(1.,[1,1,1])
@@ -151,7 +149,7 @@ end
        
 
 
-        @vars w T d # Define symbolic variables
+        @syms w T d # Define symbolic variables
         h = 0.01
         G = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
         Gd = tustin(G, h) # Discretize 
@@ -226,7 +224,7 @@ end
         @test norm(y-y_)/norm(y_) < 1e-10 # TODO: figure out why this is more sensitive
 
         ## Multiple inputs
-        @vars w T d # Define symbolic variables
+        @syms w T d # Define symbolic variables
         h = 0.01
         G = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
         Gd = tustin(G, h) # Discretize 
@@ -317,7 +315,7 @@ end
             tf([a], [b, c])
         end
         Gsympy = let
-            @vars a b c s
+            @syms a b c s
             tf([a], [b, c])
         end
 

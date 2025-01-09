@@ -18,10 +18,11 @@ Pkg.add(["ControlSystemsBase", "SymbolicControlSystems"])
 ```julia
 julia> using ControlSystemsBase, SymbolicControlSystems
 
-julia> @vars w T d # Define (SymPy) symbolic variables
+julia> @syms w T d # Define (SymPy) symbolic variables
 (w, T, d)
 
-julia> h = 0.01; # Sample time
+julia>
+ # Sample time
 
 julia> G = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
 TransferFunction{Continuous, SisoRational{Sym}}
@@ -71,7 +72,7 @@ Discrete-time transfer function model
 Get a Latex-string
 ```julia
 julia> latextf(G)
-"\$\\dfrac{1.0w^2}{0.003s^3 + s^2(0.006dw + 1.0) + s(2.0dw + 0.003w^2) + 1.0w^2}\$"
+"\$\\dfrac{w^2}{Ts^3 + s^2(2Tdw + 1) + s(Tw^2 + 2dw) + w^2}\$"
 ```
 
 
@@ -85,7 +86,7 @@ A usage example follows
 ```julia
 using ControlSystemsBase, SymbolicControlSystems
 
-@vars w T d      # Define symbolic variables
+@syms w T d      # Define symbolic variables
 h        = 0.01  # Sample time
 G        = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
 Gd       = tustin(G, h) # Discretize
