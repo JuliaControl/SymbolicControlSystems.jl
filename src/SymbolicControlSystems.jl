@@ -10,7 +10,7 @@ export sp,
     sym2num,
     latextf,
     Sym,
-    @vars,
+    @syms,
     simplify,
     tustin,
     doubleeuler,
@@ -21,21 +21,15 @@ export sp,
 
 # export symbolics2sym
 
-const sp = SymPy.PyCall.PyNULL()
+const sp = SymPy.sympy# SymPy.PyCall.PyNULL()
 const s = SymPy.Sym("s")
 const z = SymPy.Sym("z")
 
 const NumOrDiv = Union{Num, Symb.SymbolicUtils.Div, Symb.SymbolicUtils.BasicSymbolic}
 
 
-function __init__()
-    # global const s = Sym("s")
-    # global const z = Sym("z")
-    copy!(sp, SymPy.sympy)
-end
 
-
-function SymPy.Sym(sys::StateSpace{<:Any,Sym})
+function SymPy.Sym(sys::StateSpace{<:Any,<:Sym})
     A, B, C, D = ControlSystemsBase.ssdata(sys)
     expr = if isdiscrete(sys)
         (C*inv(z * I(size(A, 1)) - A)*B+D)
@@ -73,7 +67,7 @@ function Num(sys::TransferFunction)
     λ = λ[]
     num = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(numvec(sys)[]))) |> Symb.simplify
     den = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(denvec(sys)[]))) |> Symb.simplify
-    Symb.simplify(num/den)
+    num/den # |> Symb.simplify
 end
 
 """
@@ -116,7 +110,7 @@ function ControlSystemsBase.minreal(sys::TransferFunction{<:Any,<:ControlSystems
     Sym(sys) |> simplify |> tf
 end
 
-function ControlSystemsBase.tf(sys::StateSpace{<:Any,Sym})
+function ControlSystemsBase.tf(sys::StateSpace{<:Any,<:Sym})
     n, p = simplify.(sp.Poly.(simplify.(sp.fraction(simplify(Sym(sys)))), s))
     tf(simplify(n / p))
 end
@@ -129,7 +123,7 @@ function ControlSystemsBase.minreal(sys::StateSpace{<:Any,NumOrDiv})
     nsys = Symb.simplify_fractions.(nsys)
 end
 
-function ControlSystemsBase.minreal(sys::StateSpace{<:Any,Sym})
+function ControlSystemsBase.minreal(sys::StateSpace{<:Any,<:Sym})
     # sys |> Symb.Num .|> Symb.symbolics_to_sympy .|> sp.simplify
     nsys = Sym(sys)
     nsys = sp.simplify.(nsys)
@@ -170,7 +164,7 @@ end
 Replace symbols by numbers. `h` indicates the sample rate if the system is discrete.
 """
 function sym2num(P::Sym, h::Real, pairs::Pair...)
-    P.has(s) && error(
+    convert(Bool, P.has(s)) && error(
         "Found `z` in symbolic expression, provide sample time as second argument to `sym2num`",
     )
     for (sym, val) in pairs
@@ -194,10 +188,10 @@ Replace symbols by numbers.
 """
 function sym2num(P::Sym, pairs::Pair...)
     # for i = 1:2
-    P.has(z) && error(
+    convert(Bool, P.has(z)) && error(
         "Found `z` in symbolic expression, provide sample time as second argument to `sym2num`",
     )
-    P.has(s) || error("Found no `s` in symbolic expression, provide")
+    convert(Bool, P.has(s)) || error("Found no `s` in symbolic expression, provide")
     for (sym, val) in pairs
         P = subs(P, (sym, val))
     end
@@ -324,8 +318,8 @@ function ccode(G::TransferFunction; simplify = identity, cse = true, static=true
     numT = double ? "double" : "float"
     (G.nu == 1 && G.ny == 1) || throw(ArgumentError("C-code generation for transfer functions does not support multiple inputs or outputs, convert the transfer function to a statespace system using ss(G) and call ccode on that instead."))
     P = Sym(G)
-    P.has(z) || error("Did not find `z` in symbolic expression")
-    P.has(s) && error("Found `s` in symbolic expression, provide expression in `z`")
+    convert(Bool, P.has(z)) || error("Did not find `z` in symbolic expression")
+    convert(Bool, P.has(s)) && error("Found `s` in symbolic expression, provide expression in `z`")
     n, d = numvec(G)[], denvec(G)[]
     if d[1] != 1
         @info "Denominator polynomial not monic, dividing by the leading coefficient."
@@ -334,7 +328,7 @@ function ccode(G::TransferFunction; simplify = identity, cse = true, static=true
     end
     @info "Calling free_symbols"
     @info vars = P.free_symbols
-    vars.remove(z)
+    delete!(vars, z)
     vars = collect(vars)
     vars = sort(vars, by = string)
     var_str = ""
@@ -518,7 +512,7 @@ end
 Return a latex string representing `x`. If `mon`, then the denominator polynomial will be made monic (leading coefficient = 1).
 """
 function latextf(x::Sym, mon = false)
-    var = x.has(z) ? z : s
+    var = convert(Bool, x.has(z)) ? z : s
     n, d = sp.fraction(x)
     if mon
         n, d = monic(n, d)
