@@ -117,20 +117,6 @@ function ControlSystemsBase.tf(sys::StateSpace{TE,<:Sym}) where TE
     tf(simplify(n / p), sys.timeevol)
 end
 
-function Base.:(*)(A::AbstractMatrix{Bool}, B::AbstractMatrix{<:Sym})
-    # This is a hack to allow ROC.connect with named systems of Syms
-    @show A
-    @show B
-    try
-        @show Bb = convert.(Bool, B)
-        return float.(A) * Bb
-    catch
-        @show (1.0 .* B)
-        return float.(A) * (1.0 .* B)
-    end
-end
-
-
 function ControlSystemsBase.minreal(sys::StateSpace{<:Any,NumOrDiv})
     # sys |> Symb.Num .|> Symb.symbolics_to_sympy .|> sp.simplify
     nsys = Num(sys)
