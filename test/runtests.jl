@@ -5,6 +5,7 @@ s = SymbolicControlSystems.s
 z = SymbolicControlSystems.z
 import Symbolics
 import Symbolics: Num
+using LinearAlgebra
 
 
 macro test_both(G,sym)
@@ -304,6 +305,9 @@ end
         # Test that denominator is still monic
         @test_both_symb tf([b, a], [1, c, 1])  (b*s + a)/(s^2 + c*s + 1)
         @test_both_symb tf([b, a], [1, c, 1], 0.1)  (b*z + a)/(z^2 + c*z + 1)
+
+        # MIMO
+        Num(tf([a], [1, c, b]) .* LinearAlgebra.diagm([1, 1]))
         
     end
 

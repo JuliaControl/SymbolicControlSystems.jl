@@ -52,17 +52,19 @@ function SymPy.Sym(sys::TransferFunction)
 end
 
 function Num(sys::StateSpace{<:Any,Num})
+    # ControlSystemsBase.issiso(sys) || throw(ArgumentError("Only SISO systems are supported"))
     A, B, C, D = ControlSystemsBase.ssdata(sys)
     λ = isdiscrete(sys) ? Symb.@variables(z) : Symb.@variables(s)
     λ = λ[]
-    ex = (C*inv(λ * I(size(A, 1)) - A)*B+D)[1]
+    ex = (C*inv(λ * I(size(A, 1)) - A)*B+D)
     if sys.nx < 4
-        ex = Symb.simplify(ex)
+        ex = Symb.simplify.(ex)
     end
-    ex
+    length(ex) == 1 ? ex[] : ex
 end
 
 function Num(sys::TransferFunction)
+    ControlSystemsBase.issiso(sys) || (return Num(ss(sys)))
     λ = isdiscrete(sys) ? Symb.@variables(z) : Symb.@variables(s)
     λ = λ[]
     num = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(numvec(sys)[]))) |> Symb.simplify
@@ -110,9 +112,22 @@ function ControlSystemsBase.minreal(sys::TransferFunction{<:Any,<:ControlSystems
     Sym(sys) |> simplify |> tf
 end
 
-function ControlSystemsBase.tf(sys::StateSpace{<:Any,<:Sym})
+function ControlSystemsBase.tf(sys::StateSpace{TE,<:Sym}) where TE
     n, p = simplify.(sp.Poly.(simplify.(sp.fraction(simplify(Sym(sys)))), s))
-    tf(simplify(n / p))
+    tf(simplify(n / p), sys.timeevol)
+end
+
+function Base.:(*)(A::AbstractMatrix{Bool}, B::AbstractMatrix{<:Sym})
+    # This is a hack to allow ROC.connect with named systems of Syms
+    @show A
+    @show B
+    try
+        @show Bb = convert.(Bool, B)
+        return float.(A) * Bb
+    catch
+        @show (1.0 .* B)
+        return float.(A) * (1.0 .* B)
+    end
 end
 
 
