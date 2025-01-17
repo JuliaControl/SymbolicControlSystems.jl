@@ -997,7 +997,7 @@ version = "3.10.1"
 
 [[Symbolics]]
 deps = ["ADTypes", "ArrayInterface", "Bijections", "CommonWorldInvalidations", "ConstructionBase", "DataStructures", "DiffRules", "Distributions", "DocStringExtensions", "DomainSets", "DynamicPolynomials", "IfElse", "LaTeXStrings", "Latexify", "Libdl", "LinearAlgebra", "LogExpFunctions", "MacroTools", "Markdown", "NaNMath", "PrecompileTools", "Primes", "RecipesBase", "Reexport", "RuntimeGeneratedFunctions", "SciMLBase", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArraysCore", "SymbolicIndexingInterface", "SymbolicLimits", "SymbolicUtils", "TermInterface"]
-path = "/home/fredrikb/.julia/dev/Symbolics"
+git-tree-sha1 = "ad6615b11e39fb0619b0b3d766ab4d24a432d722"
 uuid = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 version = "6.23.0"
 
