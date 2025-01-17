@@ -3,7 +3,7 @@ module SymbolicControlSystems
 using LinearAlgebra
 using ControlSystemsBase, SymPy, Latexify
 import Symbolics as Symb
-import Symbolics: Num
+using Symbolics: Num
 using InteractiveUtils
 
 export sp,
@@ -11,6 +11,7 @@ export sp,
     latextf,
     Sym,
     @syms,
+    to_num,
     simplify,
     tustin,
     doubleeuler,
@@ -25,7 +26,7 @@ const sp = SymPy.sympy# SymPy.PyCall.PyNULL()
 const s = SymPy.Sym("s")
 const z = SymPy.Sym("z")
 
-const NumOrDiv = Union{Num, Symb.SymbolicUtils.Div, Symb.SymbolicUtils.BasicSymbolic}
+const NumOrDiv = Union{Symb.Num, Symb.SymbolicUtils.Div, Symb.SymbolicUtils.BasicSymbolic}
 
 
 
@@ -51,7 +52,13 @@ function SymPy.Sym(sys::TransferFunction)
     end
 end
 
-function Num(sys::StateSpace{<:Any,Num})
+
+"""
+    to_num(sys::LTISystem)
+
+Convert a symbolic state-space system to a symbolic expression representing a transfer function
+"""
+function to_num(sys::StateSpace{<:Any,Num})
     # ControlSystemsBase.issiso(sys) || throw(ArgumentError("Only SISO systems are supported"))
     A, B, C, D = ControlSystemsBase.ssdata(sys)
     λ = isdiscrete(sys) ? Symb.@variables(z) : Symb.@variables(s)
@@ -60,16 +67,16 @@ function Num(sys::StateSpace{<:Any,Num})
     if sys.nx < 4
         ex = Symb.simplify.(ex)
     end
-    length(ex) == 1 ? ex[] : ex
+    length(ex) == 1 ? Num(ex[]) : Num.(ex)
 end
 
-function Num(sys::TransferFunction)
-    ControlSystemsBase.issiso(sys) || (return Num(ss(sys)))
+function to_num(sys::TransferFunction)
+    ControlSystemsBase.issiso(sys) || (return to_num(ss(sys)))
     λ = isdiscrete(sys) ? Symb.@variables(z) : Symb.@variables(s)
     λ = λ[]
     num = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(numvec(sys)[]))) |> Symb.simplify
     den = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(denvec(sys)[]))) |> Symb.simplify
-    num/den # |> Symb.simplify
+    Num(num/den)::Symb.Num # |> Symb.simplify
 end
 
 """
@@ -79,12 +86,14 @@ Convert a symbolic, rational expression into a transfer function. `h` denotes th
 """
 function ControlSystemsBase.tf(sys::Sym, h = nothing)
     n, d = sp.fraction(sys)
-    d = sp.Poly(d)
     # d = d.monic() # Don't do this here
-    n = n isa Number ? n : sp.Poly(n)
-    if h === nothing
+    if h === nothing || h isa Continuous
+        d = sp.Poly(d, s)
+        n = n isa Number ? n : sp.Poly(n, s)
         tf(expand_coeffs(n, s), expand_coeffs(d, s))
     else
+        d = sp.Poly(d, z)
+        n = n isa Number ? n : sp.Poly(n, z)
         tf(expand_coeffs(n, z), expand_coeffs(d, z), h)
     end
 end
@@ -101,10 +110,10 @@ expand_coeffs(n::Real, args...; numeric = false) = n
 function ControlSystemsBase.tf(sys::NumOrDiv, h = nothing)
     sp = Symb.symbolics_to_sympy(sys)
     G = tf(sp, h)
-    tf(Num.(numvec(G)[]), Num.(denvec(G)[]), G.timeevol)
+    tf(to_num.(numvec(G)[]), to_num.(denvec(G)[]), G.timeevol)
 end
 
-Base.:(==)(s1::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{Num}}, s2::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{<:NumOrDiv}}) = isequal(Num(s1), Num(s2))
+Base.:(==)(s1::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{Num}}, s2::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{<:NumOrDiv}}) = isequal(to_num(s1), to_num(s2))
 
 Base.promote_op(::typeof(/),::Type{NumOrDiv},::Type{NumOrDiv}) = Num # This is required to make conversion to ss work. Arithmetic operaitons on Num are super type unstable so inference fails https://github.com/JuliaSymbolics/Symbolics.jl/issues/626
 
@@ -113,6 +122,7 @@ function ControlSystemsBase.minreal(sys::TransferFunction{<:Any,<:ControlSystems
 end
 
 function ControlSystemsBase.tf(sys::StateSpace{TE,<:Sym}) where TE
+    simplify = sp.simplify
     n, p = simplify.(sp.Poly.(simplify.(sp.fraction(simplify(Sym(sys)))), s))
     tf(simplify(n / p), sys.timeevol)
 end
@@ -130,7 +140,7 @@ function ControlSystemsBase.minreal(sys::StateSpace{<:Any,<:Sym})
     nsys = sp.simplify.(nsys)
 end
 
-function Num(x::Sym)
+function to_num(x::Sym)::Num
     try
         return Float64(x)
     catch

@@ -6,6 +6,7 @@ z = SymbolicControlSystems.z
 import Symbolics
 import Symbolics: Num
 using LinearAlgebra
+Base.active_repl.options.hint_tab_completes = false # This messes with sympy https://discourse.julialang.org/t/sympy-makes-repl-to-stuck/124814/6
 
 
 macro test_both(G,sym)
@@ -24,10 +25,10 @@ end
 macro test_both_symb(G,sym)
     quote
         if isdiscrete($(esc(G))) 
-            @test isequal(Num($(esc(G))), $(esc(sym)))
+            @test isequal(to_num($(esc(G))), $(esc(sym)))
             @test isequal($(esc(G)), tf($(esc(sym)), $(esc(G)).Ts))
         else
-            @test isequal(Num($(esc(G))), $(esc(sym)))
+            @test isequal(to_num($(esc(G))), $(esc(sym)))
             @test $(esc(G)) == tf($(esc(sym)))
             # @test isequal(tf(ss($(esc(G)))), tf($(esc(sym)))) # ss -> tf calls eigvals which fails on Num
         end
@@ -288,13 +289,13 @@ end
         @test_both_symb tf([a], [b, c, 1], 0.1)  a/(b*z^2 + c*z + 1)
 
         # Test that denominator is still monic
-        @test string(Num(tf([a], [1, c, b]))) == string(a/(s^2 + c*s + b))
-        @test string(Num(tf([a], [1, c, b], 0.1))) == string(a/(z^2 + c*z + b))
+        @test string(to_num(tf([a], [1, c, b]))) == string(a/(s^2 + c*s + b))
+        @test string(to_num(tf([a], [1, c, b], 0.1))) == string(a/(z^2 + c*z + b))
 
 
         # Test that denominator is still monic
-        @test string(Num(tf([b, a], [1, c, 1]))) == string((b*s + a)/(s^2 + c*s + 1))
-        @test string(Num(tf([b, a], [1, c, 1], 0.1))) == string((b*z + a)/(z^2 + c*z + 1))
+        @test string(to_num(tf([b, a], [1, c, 1]))) == string((b*s + a)/(s^2 + c*s + 1))
+        @test string(to_num(tf([b, a], [1, c, 1], 0.1))) == string((b*z + a)/(z^2 + c*z + 1))
 
 
         # Test that denominator is still monic
@@ -307,7 +308,7 @@ end
         @test_both_symb tf([b, a], [1, c, 1], 0.1)  (b*z + a)/(z^2 + c*z + 1)
 
         # MIMO
-        Num(tf([a], [1, c, b]) .* LinearAlgebra.diagm([1, 1]))
+        to_num(tf([a], [1, c, b]) .* LinearAlgebra.diagm([1, 1]))
         
     end
 
@@ -323,7 +324,7 @@ end
             tf([a], [b, c])
         end
 
-        @test Gsymbolcs == tf(Num(Gsympy))
-        @test Symbolics.symbolics_to_sympy(Num(Gsymbolcs)) == Sym(Gsympy)
+        @test Gsymbolcs == tf(to_num(Gsympy))
+        @test Symbolics.symbolics_to_sympy(to_num(Gsymbolcs)) == Sym(Gsympy)
     end
 end
