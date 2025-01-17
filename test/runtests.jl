@@ -6,7 +6,7 @@ z = SymbolicControlSystems.z
 import Symbolics
 import Symbolics: Num
 using LinearAlgebra
-Base.active_repl.options.hint_tab_completes = false # This messes with sympy https://discourse.julialang.org/t/sympy-makes-repl-to-stuck/124814/6
+isinteractive() && (Base.active_repl.options.hint_tab_completes = false) # This messes with sympy https://discourse.julialang.org/t/sympy-makes-repl-to-stuck/124814/6
 
 
 macro test_both(G,sym)
