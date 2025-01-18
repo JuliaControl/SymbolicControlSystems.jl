@@ -89,11 +89,11 @@ function ControlSystemsBase.tf(sys::Sym, h = nothing)
     # d = d.monic() # Don't do this here
     if h === nothing || h isa Continuous
         d = sp.Poly(d, s)
-        n = n isa Number ? float(n) : sp.Poly(n, s)
+        n = n isa Number ? 1.0*n : sp.Poly(n, s)
         tf(expand_coeffs(n, s), expand_coeffs(d, s))
     else
         d = sp.Poly(d, z)
-        n = n isa Number ? float(n) : sp.Poly(n, z)
+        n = n isa Number ? 1.0*n : sp.Poly(n, z)
         tf(expand_coeffs(n, z), expand_coeffs(d, z), h)
     end
 end
