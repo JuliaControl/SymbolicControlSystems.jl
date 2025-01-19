@@ -4,7 +4,7 @@ using ControlSystemsBase
 s = SymbolicControlSystems.s
 z = SymbolicControlSystems.z
 import Symbolics
-import Symbolics: Num
+using Symbolics: Num
 using LinearAlgebra
 isinteractive() && (Base.active_repl.options.hint_tab_completes = false) # This messes with sympy https://discourse.julialang.org/t/sympy-makes-repl-to-stuck/124814/6
 
@@ -96,6 +96,13 @@ end
         @test_both tf([b, a], [1, c, 1])  (b*s + a)/(s^2 + c*s + 1)
         @test_both tf([b, a], [1, c, 1], 0.1)  (b*z + a)/(z^2 + c*z + 1)
         
+
+        @syms T
+        @test convert(typeof(tf(1, [T, 1])), 0) == tf(0)
+        @test_nowarn [0 tf(1, [T, 1]); 0 tf(1)]
+        @test [tf(0) tf(1, [T, 1])] == [0 tf(1, [T, 1])]
+
+
     end
 
 
