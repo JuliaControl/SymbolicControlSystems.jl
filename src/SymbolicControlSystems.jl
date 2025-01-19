@@ -99,17 +99,21 @@ function ControlSystemsBase.tf(sys::Sym, h = nothing)
 end
 
 function expand_coeffs(n, var; numeric = false)
-    n = sp.Poly(n, var)
-    deg = n.degree() |> Float64 |> Int
-    c = n.all_coeffs() # This fails if the coeffs are symbolic
-    numeric && (c = Float64.(c))
-    [c; zeros(eltype(c), deg - length(c) + 1)]
+    if n == 0
+        [0.0]
+    else
+        n = sp.Poly(n, var)
+        deg = n.degree() |> Float64 |> Int
+        c = n.all_coeffs() # This fails if the coeffs are symbolic
+        numeric && (c = Float64.(c))
+        [c; zeros(eltype(c), deg - length(c) + 1)]
+    end
 end
 expand_coeffs(n::Real, args...; numeric = false) = n
 
 function ControlSystemsBase.tf(sys::NumOrDiv, h = nothing)
-    sp = Symb.symbolics_to_sympy(sys)
-    G = tf(sp, h)
+    sys_sp = Symb.symbolics_to_sympy(sys)
+    G = h === nothing || h === Continuous() ? tf(sys_sp) : tf(sys_sp, h)
     tf(to_num.(numvec(G)[]), to_num.(denvec(G)[]), G.timeevol)
 end
 
@@ -144,7 +148,8 @@ function to_num(x::Sym)::Num
     try
         return Float64(x)
     catch
-        Symb.Num(Symb.variable(Symbol(x); T=Real))
+        # Symb.Num(Symb.variable(Symbol(x); T=Real))
+        Symb.parse_expr_to_symbolic(Meta.parse(string(x)), Main)
     end
 end
 
