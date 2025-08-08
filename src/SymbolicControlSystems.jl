@@ -117,6 +117,78 @@ function ControlSystemsBase.tf(sys::NumOrDiv, h = nothing)
     tf(to_num.(numvec(G)[]), to_num.(denvec(G)[]), G.timeevol)
 end
 
+function Base.convert(::Type{StateSpace{TE,T}}, G::TransferFunction; balance=false) where {TE,T<:Sym}
+
+    if !isproper(G)
+        throw(ImproperException())
+    end
+
+    ny, nu = size(G)
+
+    # A, B, C, D matrices for each element of the transfer function matrix
+    abcd_vec = [siso_tf_to_ss(T, g) for g in G.matrix[:]]
+
+    # Number of states for each transfer function element realization
+    nvec = [size(abcd[1], 1) for abcd in abcd_vec]
+    ntot = sum(nvec)
+
+    A = zeros(T, (ntot, ntot))
+    B = zeros(T, (ntot, nu))
+    C = zeros(T, (ny, ntot))
+    D = zeros(T, (ny, nu))
+
+    inds = -1:0
+    for j=1:nu
+        for i=1:ny
+            k = (j-1)*ny + i
+
+            # states corresponding to the transfer function element (i,j)
+            inds = (inds.stop+1):(inds.stop+nvec[k])
+
+            A[inds,inds], B[inds,j:j], C[i:i,inds], D[i:i,j:j] = abcd_vec[k]
+        end
+    end
+    return StateSpace{TE,T}(A, B, C, D, TE(G.timeevol))
+end
+
+# These two functions are moved here since MatrixPencils don't operate on Sym
+using ControlSystemsBase: SisoRational, SisoTf
+siso_tf_to_ss(T::Type, f::SisoTf) = siso_tf_to_ss(T, convert(SisoRational, f))
+
+# Conversion to statespace on controllable canonical form
+function siso_tf_to_ss(T::Type, f::SisoRational)
+
+    num0, den0 = numvec(f), denvec(f)
+    # Normalize the numerator and denominator to allow realization of transfer functions
+    # that are proper, but not strictly proper
+    num = num0 ./ den0[1]
+    den = den0 ./ den0[1]
+
+    N = length(den) - 1 # The order of the rational function f
+
+    # Get numerator coefficient of the same order as the denominator
+    bN = length(num) == N+1 ? num[1] : zero(eltype(num))
+
+    @views if N == 0 #|| num == zero(Polynomial{T})
+        A = zeros(T, 0, 0)
+        B = zeros(T, 0, 1)
+        C = zeros(T, 1, 0)
+    else
+        A = diagm(1 => ones(T, N-1))
+        A[end, :] .= .-reverse(den)[1:end-1]
+
+        B = zeros(T, N, 1)
+        B[end] = one(T)
+
+        C = zeros(T, 1, N)
+        C[1:min(N, length(num))] = reverse(num)[1:min(N, length(num))]
+        C[:] .-= bN .* reverse(den)[1:end-1] # Can index into polynomials at greater inddices than their length
+    end
+    D = fill(bN, 1, 1)
+
+    return A, B, C, D
+end
+
 Base.:(==)(s1::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{Num}}, s2::TransferFunction{<:Any,<:ControlSystemsBase.SisoTf{<:NumOrDiv}}) = isequal(to_num(s1), to_num(s2))
 
 Base.promote_op(::typeof(/),::Type{NumOrDiv},::Type{NumOrDiv}) = Num # This is required to make conversion to ss work. Arithmetic operaitons on Num are super type unstable so inference fails https://github.com/JuliaSymbolics/Symbolics.jl/issues/626
@@ -315,7 +387,7 @@ end
 
 
 """
-    ccode(G; simplify = identity, cse = true)
+    ccode(G; simplify = identity, cse = true, static = true, double = true)
 
 Return a string with C-code for filtering a signal `u` through `G`. 
 
@@ -329,6 +401,8 @@ The state is internally handled by C `static` variables, so the generated code i
 - `G`: A linear system
 - `simplify`: A function for symbolic simplification. You may try `Sympy.simplify`, but for large systems, this will take a long time to compute.
 - `cse`: Perform common subexpression elimination. This generally improves the performance of the generated code.
+- `static`: If `true`, the generated code will use static variables to store the state of the system. If `false`, the function will take pointers to the state variables as input arguments.
+- `double`: If `true`, the generated code will use `double` as the numeric type. If false, it will use `float`.
 """
 function ccode(G::TransferFunction; simplify = identity, cse = true, static=true, double=true)
     numT = double ? "double" : "float"

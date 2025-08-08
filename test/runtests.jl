@@ -282,6 +282,145 @@ end
 
     end
 
+    @testset "TNon-static C-code" begin
+        @info "Testing Tustin and non-static C-code"
+        
+        # Test TransferFunction with static=false
+        @syms J c
+        G = tf(1.,[J^2,c,1])
+        Gt = tustin(G, 0.1)
+        
+        # Generate non-static code for transfer function
+        code = SymbolicControlSystems.ccode(Gt, static=false)
+        @test !occursin("static double u[3]", code)
+        @test !occursin("static double y[3]", code)
+        @test occursin("double *u, double *y", code)
+        @test occursin("double ui, double J, double c", code)
+        
+        # Test StateSpace with static=false
+        code_ss = SymbolicControlSystems.ccode(ss(Gt), static=false)
+        @test !occursin("static double x[", code_ss)
+        @test occursin("double *x, double *y", code_ss)
+        
+        # Test with symbolic system and verify behavior
+        @syms w T d
+        h = 0.01
+        G = tf([w^2], [1, 2*d*w, w^2]) * tf(1, [T, 1])
+        Gd = tustin(G, h)
+        
+        # Generate non-static code
+        code = SymbolicControlSystems.ccode(Gd, static=false)
+        path = mktempdir()
+        filename = joinpath(path, "code_nonstatic.c")
+        outname = joinpath(path, "test_nonstatic.so")
+        
+        # Create wrapper C code that manages external state
+        wrapper_code = """
+        #include <string.h>
+        $code
+        
+        // Wrapper function that manages state for testing
+        double transfer_function_wrapper(double ui, double T, double d, double w, double *u_state, double *y_state) {
+            return transfer_function(u_state, y_state, ui, T, d, w);
+        }
+        """
+        
+        write(joinpath(path, filename), wrapper_code)
+        run(`gcc $filename -lm -shared -o $outname`)
+        
+        # Test function with external state management
+        function c_lsim_nonstatic(u_signal, T, d, w)
+            u_state = zeros(3)
+            y_state = zeros(3)
+            Libc.Libdl.dlopen(outname) do lib
+                fn = Libc.Libdl.dlsym(lib, :transfer_function_wrapper)
+                map(u_signal) do u
+                    @ccall $(fn)(u::Float64, T::Float64, d::Float64, w::Float64, 
+                                u_state::Ref{Cdouble}, y_state::Ref{Cdouble})::Float64
+                end
+            end
+        end
+        
+        # Test with two independent filters
+        function c_lsim_dual(u_signal, T, d, w)
+            u_state1 = zeros(3)
+            y_state1 = zeros(3)
+            u_state2 = zeros(3)
+            y_state2 = zeros(3)
+            
+            result1 = Float64[]
+            result2 = Float64[]
+            
+            Libc.Libdl.dlopen(outname) do lib
+                fn = Libc.Libdl.dlsym(lib, :transfer_function_wrapper)
+                for u in u_signal
+                    # First filter
+                    r1 = @ccall $(fn)(u::Float64, T::Float64, d::Float64, w::Float64, 
+                                     u_state1::Ref{Cdouble}, y_state1::Ref{Cdouble})::Float64
+                    push!(result1, r1)
+                    
+                    # Second filter with same input
+                    r2 = @ccall $(fn)(u::Float64, T::Float64, d::Float64, w::Float64, 
+                                     u_state2::Ref{Cdouble}, y_state2::Ref{Cdouble})::Float64
+                    push!(result2, r2)
+                end
+            end
+            
+            result1, result2
+        end
+        
+        # Test filtering
+        u = randn(1, 100)
+        T_, d_, w_ = 0.03, 0.2, 2.0
+        
+        y = c_lsim_nonstatic(u, T_, d_, w_)
+        Gd_ = sym2num(Gd, h, Pair.((T, d, w), (T_, d_, w_))...)
+        y_julia, _ = lsim(ss(Gd_), u)
+        
+        @test norm(y - y_julia)/norm(y_julia) < 1e-10
+        
+        # Test that two independent filters work correctly
+        y1, y2 = c_lsim_dual(u, T_, d_, w_)
+        @test y1 ≈ y2  # Same input should give same output
+        @test norm(y1 - y_julia')/norm(y_julia) < 1e-10
+
+        # Test StateSpace with static=false
+        code_ss = SymbolicControlSystems.ccode(ss(Gd), static=false)
+        
+        # Create wrapper for state-space
+        wrapper_code_ss = """
+        #include <string.h>
+        $code_ss
+        
+        // Wrapper that manages state
+        void transfer_function_ss_wrapper(double *y, double u, double T, double d, double w, double *x_state) {
+            transfer_function(x_state, y, u, T, d, w);
+        }
+        """
+        
+        filename_ss = joinpath(path, "code_nonstatic_ss.c")
+        outname_ss = joinpath(path, "test_nonstatic_ss.so")
+        write(joinpath(path, filename_ss), wrapper_code_ss)
+        run(`gcc $filename_ss -lm -shared -o $outname_ss`)
+        
+        function c_lsim_ss_nonstatic(u_signal, T, d, w)
+            nx = ControlSystemsBase.nstates(ss(Gd_))
+            x_state = zeros(nx)
+            y = zeros(1)
+            
+            Libc.Libdl.dlopen(outname_ss) do lib
+                fn = Libc.Libdl.dlsym(lib, :transfer_function_ss_wrapper)
+                map(u_signal) do u
+                    @ccall $(fn)(y::Ref{Cdouble}, u::Float64, T::Float64, d::Float64, w::Float64,
+                                x_state::Ref{Cdouble})::Cvoid
+                    y[]
+                end
+            end
+        end
+        
+        y_ss = c_lsim_ss_nonstatic(u, T_, d_, w_)
+        @test norm(y_ss - y_julia)/norm(y_julia) < 1e-10
+    end
 
 
 
