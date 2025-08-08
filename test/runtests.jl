@@ -282,8 +282,8 @@ end
 
     end
 
-    @testset "TNon-static C-code" begin
-        @info "Testing Tustin and non-static C-code"
+    @testset "Non-static C-code" begin
+        @info "Testing Non-static C-code"
         
         # Test TransferFunction with static=false
         @syms J c
@@ -313,55 +313,41 @@ end
         path = mktempdir()
         filename = joinpath(path, "code_nonstatic.c")
         outname = joinpath(path, "test_nonstatic.so")
-        
-        # Create wrapper C code that manages external state
-        wrapper_code = """
-        #include <string.h>
-        $code
-        
-        // Wrapper function that manages state for testing
-        double transfer_function_wrapper(double ui, double T, double d, double w, double *u_state, double *y_state) {
-            return transfer_function(u_state, y_state, ui, T, d, w);
-        }
-        """
-        
-        write(joinpath(path, filename), wrapper_code)
+        write(joinpath(path, filename), code)
+        # Compile the C code to a shared library   
         run(`gcc $filename -lm -shared -o $outname`)
         
         # Test function with external state management
         function c_lsim_nonstatic(u_signal, T, d, w)
-            u_state = zeros(3)
-            y_state = zeros(3)
+            u_state = zeros(4)
+            y_state = zeros(4)
             Libc.Libdl.dlopen(outname) do lib
-                fn = Libc.Libdl.dlsym(lib, :transfer_function_wrapper)
+                fn = Libc.Libdl.dlsym(lib, :transfer_function)
                 map(u_signal) do u
-                    @ccall $(fn)(u::Float64, T::Float64, d::Float64, w::Float64, 
-                                u_state::Ref{Cdouble}, y_state::Ref{Cdouble})::Float64
+                    @ccall $(fn)(u_state::Ref{Cdouble}, y_state::Ref{Cdouble}, u::Float64, T::Float64, d::Float64, w::Float64)::Float64
                 end
             end
         end
         
         # Test with two independent filters
         function c_lsim_dual(u_signal, T, d, w)
-            u_state1 = zeros(3)
-            y_state1 = zeros(3)
-            u_state2 = zeros(3)
-            y_state2 = zeros(3)
+            u_state1 = zeros(4)
+            y_state1 = zeros(4)
+            u_state2 = zeros(4)
+            y_state2 = zeros(4)
             
             result1 = Float64[]
             result2 = Float64[]
             
             Libc.Libdl.dlopen(outname) do lib
-                fn = Libc.Libdl.dlsym(lib, :transfer_function_wrapper)
+                fn = Libc.Libdl.dlsym(lib, :transfer_function)
                 for u in u_signal
                     # First filter
-                    r1 = @ccall $(fn)(u::Float64, T::Float64, d::Float64, w::Float64, 
-                                     u_state1::Ref{Cdouble}, y_state1::Ref{Cdouble})::Float64
+                    r1 = @ccall $(fn)(u_state1::Ref{Cdouble}, y_state1::Ref{Cdouble}, u::Float64, T::Float64, d::Float64, w::Float64)::Float64
                     push!(result1, r1)
                     
                     # Second filter with same input
-                    r2 = @ccall $(fn)(u::Float64, T::Float64, d::Float64, w::Float64, 
-                                     u_state2::Ref{Cdouble}, y_state2::Ref{Cdouble})::Float64
+                    r2 = @ccall $(fn)(u_state2::Ref{Cdouble}, y_state2::Ref{Cdouble}, u::Float64, T::Float64, d::Float64, w::Float64)::Float64
                     push!(result2, r2)
                 end
             end
@@ -387,32 +373,20 @@ end
         # Test StateSpace with static=false
         code_ss = SymbolicControlSystems.ccode(ss(Gd), static=false)
         
-        # Create wrapper for state-space
-        wrapper_code_ss = """
-        #include <string.h>
-        $code_ss
-        
-        // Wrapper that manages state
-        void transfer_function_ss_wrapper(double *y, double u, double T, double d, double w, double *x_state) {
-            transfer_function(x_state, y, u, T, d, w);
-        }
-        """
         
         filename_ss = joinpath(path, "code_nonstatic_ss.c")
         outname_ss = joinpath(path, "test_nonstatic_ss.so")
-        write(joinpath(path, filename_ss), wrapper_code_ss)
+        write(joinpath(path, filename_ss), code_ss)
         run(`gcc $filename_ss -lm -shared -o $outname_ss`)
         
         function c_lsim_ss_nonstatic(u_signal, T, d, w)
-            nx = ControlSystemsBase.nstates(ss(Gd_))
-            x_state = zeros(nx)
+            x_state = zeros(ss(Gd_).nx)
             y = zeros(1)
             
             Libc.Libdl.dlopen(outname_ss) do lib
-                fn = Libc.Libdl.dlsym(lib, :transfer_function_ss_wrapper)
+                fn = Libc.Libdl.dlsym(lib, :transfer_function)
                 map(u_signal) do u
-                    @ccall $(fn)(y::Ref{Cdouble}, u::Float64, T::Float64, d::Float64, w::Float64,
-                                x_state::Ref{Cdouble})::Cvoid
+                    @ccall $(fn)(x_state::Ref{Cdouble}, y::Ref{Cdouble}, u::Float64, T::Float64, d::Float64, w::Float64)::Cvoid
                     y[]
                 end
             end
