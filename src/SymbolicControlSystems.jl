@@ -117,7 +117,7 @@ function ControlSystemsBase.tf(sys::NumOrDiv, h = nothing)
     tf(to_num.(numvec(G)[]), to_num.(denvec(G)[]), G.timeevol)
 end
 
-function Base.convert(::Type{StateSpace{TE,T}}, G::TransferFunction; balance=false) where {TE,T<:Sym}
+function Base.convert(::Type{StateSpace{TE,T}}, G::TransferFunction; balance=false) where {TE,T<:Union{Sym, Num}}
 
     if !isproper(G)
         throw(ImproperException())
