@@ -77,7 +77,7 @@ julia> latextf(G)
 
 
 ## Code generation
-The function `code = SymbolicControlSystems.ccode(G::LTISystem)` returns a string with C-code for filtering of a signal through the linear system `G`. All symbolic variables present in `G` will be expected as inputs to the generated function. The transfer-function state is handled by the C concept of `static` variables, i.e., a variable that remembers it's value since the last function invocation. The signature of the generated function `transfer_function` expects all input arguments in alphabetical order, except for the input `u` which always comes first.
+The function `code = SymbolicControlSystems.ccode(G::LTISystem)` returns a string with C-code for filtering of a signal through the linear system `G`. All symbolic variables present in `G` will be expected as inputs to the generated function. The transfer-function state is handled by the C concept of `static` variables (or optionally using explicit state variable arguments), i.e., a variable that remembers it's value since the last function invocation. The signature of the generated function `transfer_function` expects all input arguments in alphabetical order, except for the input `u` which always comes first.
 
 Code generation for systems with multiple inputs and outputs (MIMO) is only handled for statespace systems, call `ss(G)` to convert a transfer function to a statespace system.
 
