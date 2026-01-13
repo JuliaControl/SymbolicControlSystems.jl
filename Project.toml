@@ -16,8 +16,8 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 ControlSystemsBase = "1"
 Latexify = "0.14, 0.15, 0.16"
 SymPy = "2"
-SymbolicUtils = "3.10.1"
-Symbolics = "6"
+SymbolicUtils = "4"
+Symbolics = "7"
 julia = "1.10"
 
 [extras]
