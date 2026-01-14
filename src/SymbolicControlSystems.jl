@@ -74,8 +74,15 @@ function to_num(sys::TransferFunction)
     ControlSystemsBase.issiso(sys) || (return to_num(ss(sys)))
     λ = isdiscrete(sys) ? Symb.@variables(z) : Symb.@variables(s)
     λ = λ[]
-    num = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(numvec(sys)[]))) |> Symb.simplify
-    den = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(denvec(sys)[]))) |> Symb.simplify
+    n, d = numvec(sys)[], denvec(sys)[]
+    if ControlSystemsBase.numeric_type(sys) <: Sym
+        vars = string.(unique([SymPy.free_symbols(n); SymPy.free_symbols(d)]))
+        svars = Symb.variable.(vars)
+        n = Symb.sympy_to_symbolics.(n, Ref(svars))
+        d = Symb.sympy_to_symbolics.(d, Ref(svars))
+    end
+    num = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(n))) |> Symb.simplify
+    den = sum(((i, t),) -> t * λ^(i-1), enumerate(reverse(d))) |> Symb.simplify
     Num(num/den)::Symb.Num # |> Symb.simplify
 end
 
@@ -114,7 +121,12 @@ expand_coeffs(n::Real, args...; numeric = false) = n
 function ControlSystemsBase.tf(sys::NumOrDiv, h = nothing)
     sys_sp = Symb.symbolics_to_sympy(sys)
     G = h === nothing || h === Continuous() ? tf(sys_sp) : tf(sys_sp, h)
-    tf(to_num.(numvec(G)[]), to_num.(denvec(G)[]), G.timeevol)
+    n, d = numvec(G)[], denvec(G)[]
+    vars = string.(unique([SymPy.free_symbols(n); SymPy.free_symbols(d)]))
+    svars = Symb.variable.(vars)
+    n = Symb.sympy_to_symbolics.(n, Ref(svars))
+    d = Symb.sympy_to_symbolics.(d, Ref(svars))
+    tf(n, d, G.timeevol)
 end
 
 function Base.convert(::Type{StateSpace{TE,T}}, G::TransferFunction; balance=false) where {TE,T<:Union{Sym, Num}}
